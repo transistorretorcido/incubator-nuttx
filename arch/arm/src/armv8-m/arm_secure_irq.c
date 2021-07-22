@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/armv8-m/arm_trigger_irq.c
+ * arch/arm/src/armv8-m/arm_secure_irq.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -33,55 +33,54 @@
 #include "arm_arch.h"
 #include "nvic.h"
 
-#ifdef CONFIG_ARCH_HAVE_IRQTRIGGER
+#ifdef CONFIG_ARCH_HAVE_TRUSTZONE
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_trigger_irq
+ * Name: up_set_secure_irq
  *
  * Description:
- *   Trigger an IRQ by software.
+ *   Secure an IRQ
  *
  ****************************************************************************/
 
-void up_trigger_irq(int irq)
+void up_secure_irq(int irq, bool secure)
 {
-  uint32_t pend_bit = 0;
+  uint32_t regaddr;
+  uint32_t regval;
+  int shift;
 
-  DEBUGASSERT(irq >= NVIC_IRQ_NMI && irq < NR_IRQS);
+  DEBUGASSERT(irq >= NVIC_IRQ_FIRST && irq < NR_IRQS);
 
-  if (irq >= NVIC_IRQ_FIRST)
+  irq    -= NVIC_IRQ_FIRST;
+  regaddr = NVIC_IRQ_TARGET(irq);
+
+  regval      = getreg32(regaddr);
+  shift       = irq & 0x1f;
+  regval     &= ~(1 << shift);
+  regval     |= !secure << shift;
+  putreg32(regval, regaddr);
+}
+
+/****************************************************************************
+ * Name: up_secure_irq_all
+ *
+ * Description:
+ *   Secure all IRQ
+ *
+ ****************************************************************************/
+
+void up_secure_irq_all(bool secure)
+{
+  int i;
+
+  for (i = 0; i <= NR_IRQS - NVIC_IRQ_FIRST; i += 32)
     {
-      putreg32(irq - NVIC_IRQ_FIRST, NVIC_STIR);
-    }
-  else
-    {
-      switch (irq)
-        {
-          case NVIC_IRQ_PENDSV:
-            pend_bit = NVIC_INTCTRL_PENDSVSET;
-            break;
-
-          case NVIC_IRQ_NMI:
-            pend_bit = NVIC_INTCTRL_NMIPENDSET;
-            break;
-
-          case NVIC_IRQ_SYSTICK:
-            pend_bit = NVIC_INTCTRL_PENDSTSET;
-            break;
-
-          default:
-            break;
-        }
-
-      if (pend_bit)
-        {
-          modifyreg32(NVIC_INTCTRL, 0, pend_bit);
-        }
+      putreg32(secure ? 0x0 : 0xffffffff, NVIC_IRQ_TARGET(i));
     }
 }
 
-#endif /* CONFIG_ARCH_HAVE_IRQTRIGGER */
+#endif /* CONFIG_ARCH_HAVE_TRUSTZONE */
