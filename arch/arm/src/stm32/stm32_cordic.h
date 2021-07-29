@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/wqueue/work_lock.c
+ * arch/arm/src/stm32/stm32_cordic.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,88 +18,38 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_ARM_SRC_STM32_STM32_CORDIC_H
+#define __ARCH_ARM_SRC_STM32_STM32_CORDIC_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <pthread.h>
-#include <assert.h>
-#include <errno.h>
-
-#include <nuttx/semaphore.h>
-
-#include "wqueue/wqueue.h"
-
-#if defined(CONFIG_LIB_USRWORK) && !defined(__KERNEL__)
+#include "chip.h"
 
 /****************************************************************************
- * Public Functions
+ * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: work_lock
+ * Public Function Prototypes
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: stm32_cordicinitialize
  *
  * Description:
- *   Lock the user-mode work queue.
- *
- * Input Parameters:
- *   None
+ *   Initialize a CORDIC device.  This function must be called
+ *   from board-specific logic.
  *
  * Returned Value:
- *   Zero (OK) on success, a negated errno on failure.  This error may be
- *   reported:
- *
- *   -EINTR - Wait was interrupted by a signal
+ *   On success, a pointer to the lower half CORDIC driver is returned.
+ *   NULL is returned on any failure.
  *
  ****************************************************************************/
 
-int work_lock(void)
-{
-  int ret;
+FAR struct cordic_lowerhalf_s *stm32_cordicinitialize(void);
 
-#ifdef CONFIG_BUILD_PROTECTED
-  ret = _SEM_WAIT(&g_usrsem);
-  if (ret < 0)
-    {
-      DEBUGASSERT(_SEM_ERRNO(ret) == EINTR ||
-                  _SEM_ERRNO(ret) == ECANCELED);
-      return -EINTR;
-    }
-#else
-  ret = pthread_mutex_lock(&g_usrmutex);
-  if (ret != 0)
-    {
-      DEBUGASSERT(ret == EINTR);
-      return -EINTR;
-    }
-#endif
-
-  return ret;
-}
-
-/****************************************************************************
- * Name: work_unlock
- *
- * Description:
- *   Unlock the user-mode work queue.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-void work_unlock(void)
-{
-#ifdef CONFIG_BUILD_PROTECTED
-  _SEM_POST(&g_usrsem);
-#else
-  pthread_mutex_unlock(&g_usrmutex);
-#endif
-}
-
-#endif /* CONFIG_LIB_USRWORK && !__KERNEL__*/
+#endif /* __ARCH_ARM_SRC_STM32_STM32_CORDIC_H */

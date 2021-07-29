@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/unistd/lib_utimes.c
+ * arch/xtensa/src/esp32s2/esp32s2_wdt.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -22,17 +22,29 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
+#include "xtensa.h"
+#include "hardware/esp32s2_rtccntl.h"
 
-#include <sys/time.h>
-#include <errno.h>
+#include "esp32s2_wdt.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-int utimes(FAR const char *path, const struct timeval times[2])
+/****************************************************************************
+ * Name: esp32s2_wdt_early_deinit
+ *
+ * Description:
+ *   Disable the WDT(s) that was/were enabled by the bootloader.
+ *
+ ****************************************************************************/
+
+void esp32s2_wdt_early_deinit(void)
 {
-  set_errno(ENOTSUP);
-  return ERROR;
+  uint32_t regval;
+  putreg32(RTC_CNTL_WDT_WKEY_VALUE, RTC_CNTL_WDTWPROTECT_REG);
+  regval  = getreg32(RTC_CNTL_WDTCONFIG0_REG);
+  regval &= ~RTC_CNTL_WDT_EN;
+  putreg32(regval, RTC_CNTL_WDTCONFIG0_REG);
+  putreg32(0, RTC_CNTL_WDTWPROTECT_REG);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/unistd/lib_futimens.c
+ * arch/xtensa/src/esp32s2/esp32s2_wdt.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,40 +18,17 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_XTENSA_SRC_ESP32S2_ESP32S2_WDT_H
+#define __ARCH_XTENSA_SRC_ESP32S2_ESP32S2_WDT_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <sys/stat.h>
-#include <errno.h>
-
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
-/****************************************************************************
- * Name: futimens
- *
- * Description:
- *   futimens() update the timestamps of a file with nanosecond precision.
- *   This contrasts with the historical utime(2) and utimes(2), which permit
- *   only second and microsecond precision, respectively, when setting file
- *   timestamps.
- *
- * Input Parameters:
- *   fd  - Specifies the fd to be modified
- *   times - Specifies the time value to set
- *
- * Returned Value:
- *   On success, futimens() return 0.
- *   On error, -1 is returned and errno is set to indicate the error.
- *
- ****************************************************************************/
+void esp32s2_wdt_early_deinit(void);
 
-int futimens(int fd, const struct timespec times[2])
-{
-  set_errno(ENOTSUP);
-  return ERROR;
-}
+#endif /* __ARCH_XTENSA_SRC_ESP32S2_ESP32S2_WDT_H */
