@@ -1,6 +1,5 @@
 /****************************************************************************
- * include/nuttx/lib/regex.h
- * Non-standard, pattern-matching APIs available in lib/.
+ * boards/mips/pic32mz/chipkit-wifire/src/pic32mz_bringup.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -19,50 +18,46 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_NUTTX_LIB_REGEX_H
-#define __INCLUDE_NUTTX_LIB_REGEX_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
+
+#include <sys/types.h>
+#include <syslog.h>
+
 #include <nuttx/fs/fs.h>
 
+#include "chipkit-wifire.h"
+
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Function Prototypes
- ****************************************************************************/
-
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C"
-{
-#else
-#define EXTERN extern
-#endif
-
-/****************************************************************************
- * Name: match
+ * Name: pic32mz_bringup
  *
  * Description:
- *   Simple shell-style filename pattern matcher written by Jef Poskanzer
- *   (See copyright notice in lib/lib_match.c).  This pattern matcher only
- *   handles '?', '*' and '**', and  multiple patterns separated by '|'.
- *
- * Returned Value:
- *   Returns 1 (match) or 0 (no-match).
+ *   Bring up board features
  *
  ****************************************************************************/
 
-int match(FAR const char *pattern, FAR const char *string);
+int pic32mz_bringup(void)
+{
+  int ret;
 
-#undef EXTERN
-#ifdef __cplusplus
-}
+#ifdef CONFIG_FS_PROCFS
+  /* Mount the procfs file system */
+
+  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to mount procfs at /proc: %d\n",
+            ret);
+    }
 #endif
 
-#endif /* __INCLUDE_NUTTX_LIB_REGEX_H */
+  UNUSED(ret);
+  return OK;
+}

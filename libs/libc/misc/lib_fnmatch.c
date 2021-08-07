@@ -1,11 +1,11 @@
 /****************************************************************************
- * libs/libc/misc/lib_match.c
+ * libs/libc/misc/lib_fnmatch.c
  *
  * Simple shell-style filename pattern matcher written by Jef Poskanzer
  * This pattern matcher only handles '?', '*' and '**', and  multiple
  * patterns separated by '|'.
  *
- *   Copyright © 1995, 2000 by Jef Poskanzer <jef@mail.acme.com>.
+ *   Copyright 1995, 2000 by Jef Poskanzer <jef@mail.acme.com>.
  *   All rights reserved.
  *
  * With extensions by Ken Pettit.
@@ -38,28 +38,28 @@
  * Included Files
  ****************************************************************************/
 
+#include <fnmatch.h>
 #include <string.h>
-#include <nuttx/lib/regex.h>
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: match_one
+ * Name: fnmatch_one
  *
  * Description:
  *   Does all of the work for one '|' delimited pattern
  *
  * Returned Value:
- *   Returns 1 (match) or 0 (no-match).
+ *   Returns 0 (match) or 1 (no-match).
  *
  ****************************************************************************/
 
-static int match_one(FAR const char *pattern, int patlen,
-                     FAR const char *string)
+static int fnmatch_one(FAR const char *pattern, int patlen,
+                       FAR const char *string, int flags)
 {
-  const char *p;
+  FAR const char *p;
   char first;
   int pl;
   int i;
@@ -124,7 +124,7 @@ static int match_one(FAR const char *pattern, int patlen,
               continue;
             }
 
-          return 0;
+          return FNM_NOMATCH;
         }
 
       if (*p == '*')
@@ -147,27 +147,27 @@ static int match_one(FAR const char *pattern, int patlen,
           pl = patlen - (p - pattern);
           for (; i >= 0; i--)
             {
-              if (match_one(p, pl, &(string[i])))
+              if (fnmatch_one(p, pl, &string[i], flags) == 0)
                 {
-                  return 1;
+                  return 0;
                 }
             }
 
-          return 0;
+          return FNM_NOMATCH;
         }
 
       if (*p != *string)
         {
-          return 0;
+          return FNM_NOMATCH;
         }
     }
 
   if (*string == '\0')
     {
-      return 1;
+      return 0;
     }
 
-  return 0;
+  return FNM_NOMATCH;
 }
 
 /****************************************************************************
@@ -175,7 +175,7 @@ static int match_one(FAR const char *pattern, int patlen,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: match
+ * Name: fnmatch
  *
  * Description:
  *   Simple shell-style filename pattern matcher originally written by
@@ -184,25 +184,25 @@ static int match_one(FAR const char *pattern, int patlen,
  *   by '|'.
  *
  * Returned Value:
- *   Returns 1 (match) or 0 (no-match).
+ *   Returns 0 (match) or 1 (no-match).
  *
  ****************************************************************************/
 
-int match(FAR const char *pattern, FAR const char *string)
+int fnmatch(FAR const char *pattern, const char *string, int flags)
 {
-  const char *or;
+  FAR const char *or;
 
   for (; ; )
     {
       or = strchr(pattern, '|');
-      if (or == (char *)0)
+      if (or == NULL)
         {
-          return match_one(pattern, strlen(pattern), string);
+          return fnmatch_one(pattern, strlen(pattern), string, flags);
         }
 
-      if (match_one(pattern, or - pattern, string))
+      if (fnmatch_one(pattern, or - pattern, string, flags) == 0)
         {
-          return 1;
+          return 0;
         }
 
       pattern = or + 1;
