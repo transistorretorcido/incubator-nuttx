@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/debug/lib_dumpstack.c
+ * sched/sched/sched_backtrace.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,45 +24,39 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-
-#include <stdio.h>
-#include <syslog.h>
-#include <execinfo.h>
-
-#define DUMP_FORMAT "%*p"
-#define DUMP_WIDTH  (int)(2 * sizeof(FAR void *) + 3)
-
-#define DUMP_DEPTH  16
-#define DUMP_NITEM  8
-#define DUMP_LINESIZE (DUMP_NITEM * DUMP_WIDTH)
+#include "sched.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
-void dump_stack(void)
+/****************************************************************************
+ * Name: sched_backtrace
+ *
+ * Description:
+ *  Get thread backtrace from specified tid.
+ *  Store up to SIZE return address of the current program state in
+ *  ARRAY and return the exact number of values stored.
+ *
+ ****************************************************************************/
+
+int sched_backtrace(pid_t tid, FAR void **buffer, int size)
 {
-  FAR void *address[DUMP_DEPTH];
-  char line[DUMP_LINESIZE + 1];
-  int ret = 0;
-  int size;
-  int i;
+  FAR struct tcb_s *rtcb;
 
-  size = backtrace(address, DUMP_DEPTH);
-  if (size <= 0)
+  if (tid < 0)
     {
-      return;
+      rtcb = running_task();
+    }
+  else
+    {
+      rtcb = nxsched_get_tcb(tid);
     }
 
-  for (i = 0; i < size; i++)
+  if (rtcb == NULL)
     {
-      ret += snprintf(line + ret, sizeof(line) - ret,
-                      DUMP_FORMAT, DUMP_WIDTH, address[i]);
-      if (i == size - 1 || ret % DUMP_LINESIZE == 0)
-        {
-          syslog(LOG_INFO, "[CallStack %d]: %s\n", i / DUMP_NITEM, line);
-          ret = 0;
-        }
+      return 0;
     }
+
+  return up_backtrace(rtcb, buffer, size);
 }

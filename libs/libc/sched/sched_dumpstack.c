@@ -1,5 +1,5 @@
 /****************************************************************************
- * include/execinfo.h
+ * libs/libc/sched/sched_dumpstack.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,50 +18,60 @@
  *
  ****************************************************************************/
 
-#ifndef __INCLUDE_EXECINFO_H
-#define __INCLUDE_EXECINFO_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
+#include <nuttx/config.h>
+
 #include <sys/types.h>
-#include <sched.h>
+
+#include <stdio.h>
+#include <syslog.h>
+#include <execinfo.h>
+
+#define DUMP_FORMAT "%*p"
+#define DUMP_WIDTH  (int)(2 * sizeof(FAR void *) + 3)
+
+#define DUMP_DEPTH  16
+#define DUMP_NITEM  8
+#define DUMP_LINESIZE (DUMP_NITEM * DUMP_WIDTH)
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
-
-#if defined(CONFIG_SCHED_BACKTRACE)
-
-/* Store up to SIZE return address of the current back trace in
- * ARRAY and return the exact number of values stored.
- */
-
-#define backtrace(buffer, size) sched_backtrace(gettid(), buffer, size)
-#define dump_stack()            sched_dumpstack(gettid())
-
-#else
-# define backtrace(buffer, size) 0
-# define dump_stack()
-#endif
 
 /****************************************************************************
- * Public Function Prototypes
+ * Name: sched_dumpstack
+ *
+ * Description:
+ *  Dump thread backtrace from specified tid.
+ *
  ****************************************************************************/
 
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C"
+void sched_dumpstack(pid_t tid)
 {
-#else
-#define EXTERN extern
-#endif
+  FAR void *address[DUMP_DEPTH];
+  char line[DUMP_LINESIZE + 1];
+  int ret = 0;
+  int size;
+  int i;
 
-#undef EXTERN
-#if defined(__cplusplus)
+  size = sched_backtrace(tid, address, DUMP_DEPTH);
+  if (size <= 0)
+    {
+      return;
+    }
+
+  for (i = 0; i < size; i++)
+    {
+      ret += snprintf(line + ret, sizeof(line) - ret,
+                      DUMP_FORMAT, DUMP_WIDTH, address[i]);
+      if (i == size - 1 || ret % DUMP_LINESIZE == 0)
+        {
+          syslog(LOG_INFO, "[BackTrace|%2d|%d]: %s\n",
+                           tid, i / DUMP_NITEM, line);
+          ret = 0;
+        }
+    }
 }
-#endif
-
-#endif /* __INCLUDE_EXECINFO_H */
