@@ -10,6 +10,26 @@ config APPSDIR
 	option env="APPSDIR"
 
 menu "License Setup"
+config ALLOW_BSD_COMPONENTS
+	bool "Use components that have BSD licenses"
+	default n
+	---help---
+		When this option is enabled the project will allow the use
+		of components that have BSD licenses.
+
+		NOTE: Please check that the license for each enabled
+		component matches your project license.
+
+		NOTE: If this option is not set the following components
+		are not included in the setup menu:
+		Crypto
+		    AES cypher support
+		FS
+		    NFS client file system
+		    SPIFFS File System
+		Wireless
+		    Bluetooth LE support
+
 config ALLOW_GPL_COMPONENTS
 	bool "Use components that have GPL/LGPL licenses"
 	default n
