@@ -207,6 +207,7 @@ config ESP32C3_LEDC
 	bool "LEDC (PWM)"
 	default n
 	select PWM
+	select ARCH_HAVE_PWM_MULTICHAN
 
 config ESP32C3_GPIO_IRQ
 	bool "GPIO pin interrupts"
@@ -373,6 +374,14 @@ config ESP32C3_I2C0_SDAPIN
 	range 0 21
 
 endif # ESP32C3_I2C0
+
+config ESP32C3_I2CTIMEOSEC
+	int "Timeout seconds"
+	default 0
+
+config ESP32C3_I2CTIMEOMS
+	int "Timeout milliseconds"
+	default 500
 
 endmenu # I2C configuration
 
