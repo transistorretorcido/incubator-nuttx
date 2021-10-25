@@ -1045,39 +1045,4 @@ endmenu # Partition Configuration
 
 endif
 
-menu "AES accelerator"
-	depends on ESP32C3_AES_ACCELERATOR
-
-config ESP32C3_AES_ACCELERATOR_TEST
-	bool "AES driver test"
-	default n
-
-endmenu # AES accelerator
-menu "SHA accelerator"
-	depends on ESP32C3_SHA_ACCELERATOR
-
-config ESP32C3_SHA_ACCELERATOR_TEST
-	bool "SHA accelerator test"
-	default n
-
-endmenu # ESP32C3_SHA_ACCELERATOR
-
-menu "RSA Accelerate Configuration"
-	depends on ESP32C3_RSA_ACCELERATOR
-
-config ESP32C3_RSA_ACCELERATOR_TEST
-	bool "RSA driver test"
-	default n
-
-menu "BIGNUM"
-	depends on ESP32C3_BIGNUM_ACCELERATOR
-
-config ESP32C3_BIGNUM_ACCELERATOR_TEST
-	bool "BIGNUM driver test"
-	default n
-
-endmenu # ESP32C3_BIGNUM_ACCELERATOR
-
-endmenu # ESP32C3_RSA_ACCELERATOR
-
 endif # ARCH_CHIP_ESP32C3

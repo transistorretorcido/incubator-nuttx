@@ -29,6 +29,7 @@
 #include <nuttx/config.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/semaphore.h>
+#include <nuttx/list.h>
 
 #include <stdbool.h>
 #include <fixedmath.h>
@@ -98,6 +99,14 @@ struct battery_gauge_operations_s
   /* Battery capacity */
 
   int (*capacity)(struct battery_gauge_dev_s *dev, b16_t *value);
+
+  /* Battery current */
+
+  int (*current)(struct battery_gauge_dev_s *dev, b16_t *value);
+
+  /* Battery temp */
+
+  int (*temp)(struct battery_gauge_dev_s *dev, b8_t *value);
 };
 
 /* This structure defines the battery driver state structure */
@@ -108,6 +117,8 @@ struct battery_gauge_dev_s
 
   FAR const struct battery_gauge_operations_s *ops; /* Battery operations */
   sem_t batsem;                                     /* Enforce mutually exclusive access */
+
+  struct list_node flist;
 
   /* Data fields specific to the lower-half driver may follow */
 };
@@ -129,6 +140,13 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: battery_gauge_changed
+ ****************************************************************************/
+
+int battery_gauge_changed(FAR struct battery_gauge_dev_s *dev,
+                            uint32_t mask);
 
 /****************************************************************************
  * Name: battery_gauge_register
