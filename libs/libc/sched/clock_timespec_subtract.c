@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/clock/clock_ticks2time.c
+ * libs/libc/sched/clock_timespec_subtract.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,36 +24,62 @@
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
 #include <time.h>
-#include "clock/clock.h"
+
+#include <nuttx/clock.h>
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: clock_ticks2time
+ * Name:  clock_timespec_subtract
  *
  * Description:
- *   Convert the system time tick value to a relative time.
+ *   Subtract timespec ts2 from to1 and return the result in ts3.
+ *   Zero is returned if the time difference is negative.
  *
  * Input Parameters:
- *   ticks - The number of system time ticks to convert.
- *   reltime - Return the converted system time here.
+ *   ts1 and ts2: The two timespecs to be subtracted (ts1 - ts2)
+ *   ts3: The location to return the result (may be ts1 or ts2)
  *
  * Returned Value:
- *   Always returns OK
- *
- * Assumptions:
+ *   None
  *
  ****************************************************************************/
 
-int clock_ticks2time(sclock_t ticks, FAR struct timespec *reltime)
+void clock_timespec_subtract(FAR const struct timespec *ts1,
+                             FAR const struct timespec *ts2,
+                             FAR struct timespec *ts3)
 {
-  sclock_t remainder;
+  time_t sec;
+  long nsec;
 
-  reltime->tv_sec  = ticks / TICK_PER_SEC;
-  remainder        = ticks - TICK_PER_SEC * reltime->tv_sec;
-  reltime->tv_nsec = remainder * NSEC_PER_TICK;
-  return OK;
+  if (ts1->tv_sec < ts2->tv_sec)
+    {
+      sec  = 0;
+      nsec = 0;
+    }
+  else if (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec <= ts2->tv_nsec)
+    {
+      sec  = 0;
+      nsec = 0;
+    }
+  else
+    {
+      sec = ts1->tv_sec - ts2->tv_sec;
+      if (ts1->tv_nsec < ts2->tv_nsec)
+        {
+          nsec = (ts1->tv_nsec + NSEC_PER_SEC) - ts2->tv_nsec;
+          sec--;
+        }
+      else
+        {
+          nsec = ts1->tv_nsec - ts2->tv_nsec;
+        }
+    }
+
+  ts3->tv_sec = sec;
+  ts3->tv_nsec = nsec;
 }

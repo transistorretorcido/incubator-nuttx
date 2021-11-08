@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/clock/clock_timespec_subtract.c
+ * arch/risc-v/src/esp32c3/esp32c3_wireless.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,68 +18,49 @@
  *
  ****************************************************************************/
 
+#ifndef __ARCH_RISCV_SRC_ESP32C3_ESP32C3_WIRELESS_H
+#define __ARCH_RISCV_SRC_ESP32C3_ESP32C3_WIRELESS_H
+
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
-#include <stdint.h>
-#include <time.h>
-
-#include "clock/clock.h"
-
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 /****************************************************************************
- * Name:  clock_timespec_subtract
+ * Name: esp32c3_phy_enable
  *
  * Description:
- *   Subtract timespec ts2 from to1 and return the result in ts3.
- *   Zero is returned if the time difference is negative.
+ *   Initialize PHY hardware
  *
  * Input Parameters:
- *   ts1 and ts2: The two timespecs to be subtracted (ts1 - ts2)
- *   ts3: The location to return the result (may be ts1 or ts2)
+ *   None
  *
  * Returned Value:
  *   None
  *
  ****************************************************************************/
 
-void clock_timespec_subtract(FAR const struct timespec *ts1,
-                             FAR const struct timespec *ts2,
-                             FAR struct timespec *ts3)
-{
-  time_t sec;
-  long nsec;
+void esp32c3_phy_enable(void);
 
-  if (ts1->tv_sec < ts2->tv_sec)
-    {
-      sec  = 0;
-      nsec = 0;
-    }
-  else if (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec <= ts2->tv_nsec)
-    {
-      sec  = 0;
-      nsec = 0;
-    }
-  else
-    {
-      sec = ts1->tv_sec - ts2->tv_sec;
-      if (ts1->tv_nsec < ts2->tv_nsec)
-        {
-          nsec = (ts1->tv_nsec + NSEC_PER_SEC) - ts2->tv_nsec;
-          sec--;
-        }
-      else
-        {
-          nsec = ts1->tv_nsec - ts2->tv_nsec;
-        }
-    }
+/****************************************************************************
+ * Name: esp32c3_phy_disable
+ *
+ * Description:
+ *   Deinitialize PHY hardware
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
 
-  ts3->tv_sec = sec;
-  ts3->tv_nsec = nsec;
-}
+void esp32c3_phy_disable(void);
+
+#endif /* __ARCH_RISCV_SRC_ESP32C3_ESP32C3_WIRELESS_H */

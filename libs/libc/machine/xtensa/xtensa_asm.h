@@ -1,5 +1,5 @@
 /****************************************************************************
- * libs/libc/misc/lib_streamsem.c
+ * libs/libc/machine/xtensa/xtensa_asm.h
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -22,40 +22,41 @@
  * Included Files
  ****************************************************************************/
 
-#include <nuttx/config.h>
-
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-
-#include <nuttx/semaphore.h>
-#include <nuttx/fs/fs.h>
-
-#include "libc.h"
+#include <arch/chip/core-isa.h>
 
 /****************************************************************************
- * Public Functions
+ * Assembly Language Macros
  ****************************************************************************/
 
-void stream_semtake(FAR struct streamlist *list)
-{
-  int ret;
+  .macro  src_b r, w0, w1
+#if XCHAL_HAVE_BE
+  src \r, \w0, \w1
+#else
+  src \r, \w1, \w0
+#endif
+  .endm
 
-  /* Take the semaphore (perhaps waiting) */
+  .macro  ssa8  r
+#if XCHAL_HAVE_BE
+  ssa8b \r
+#else
+  ssa8l \r
+#endif
+  .endm
 
-  while ((ret = _SEM_WAIT(&list->sl_sem)) < 0)
-    {
-      /* The only case that an error should occr here is if
-       * the wait was awakened by a signal.
-       */
+/****************************************************************************
+ * Pre-processor Macros
+ ****************************************************************************/
 
-      DEBUGASSERT(_SEM_ERRNO(ret) == EINTR || _SEM_ERRNO(ret) == ECANCELED);
-      UNUSED(ret);
-    }
-}
+#if XCHAL_HAVE_BE
+#  define MASK0 0xff000000
+#  define MASK1 0x00ff0000
+#  define MASK2 0x0000ff00
+#  define MASK3 0x000000ff
+#else
+#  define MASK0 0x000000ff
+#  define MASK1 0x0000ff00
+#  define MASK2 0x00ff0000
+#  define MASK3 0xff000000
+#endif
 
-void stream_semgive(FAR struct streamlist *list)
-{
-  _SEM_POST(&list->sl_sem);
-}

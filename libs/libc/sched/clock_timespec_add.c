@@ -1,5 +1,5 @@
 /****************************************************************************
- * sched/clock/clock_timespec_add.c
+ * libs/libc/sched/clock_timespec_add.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "clock/clock.h"
+#include <nuttx/clock.h>
 
 /****************************************************************************
  * Public Functions
