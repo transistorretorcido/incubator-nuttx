@@ -69,9 +69,11 @@ int nxsem_trywait(FAR sem_t *sem)
   irqstate_t flags;
   int ret;
 
+#ifndef CONFIG_DEBUG_MM
   /* This API should not be called from interrupt handlers */
 
   DEBUGASSERT(sem != NULL && up_interrupt_context() == false);
+#endif
 
   if (sem != NULL)
     {
@@ -88,6 +90,7 @@ int nxsem_trywait(FAR sem_t *sem)
           /* It is, let the task take the semaphore */
 
           sem->semcount--;
+          nxsem_add_holder(sem);
           rtcb->waitsem = NULL;
           ret = OK;
         }

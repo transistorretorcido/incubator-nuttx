@@ -13,14 +13,6 @@ menuconfig DISABLE_OS_API
 		disable functions unless you want to restrict usage
 		of those APIs.
 
-		There are certain dependency relationships in these
-		features.
-
-		1) mq_notify logic depends on signals to awaken tasks
-		waiting for queues to become full or empty.
-		2) pthread_condtimedwait() depends on signals to wake
-		up waiting tasks.
-
 if DISABLE_OS_API
 
 config DISABLE_POSIX_TIMERS
@@ -41,7 +33,8 @@ config DISABLE_PTHREAD
 
 config DISABLE_MQUEUE
 	bool "Disable POSIX message queue support"
-	default n
+	default y if DEFAULT_SMALL
+	default n if !DEFAULT_SMALL
 
 config DISABLE_ENVIRON
 	bool "Disable environment variable support"
@@ -62,11 +55,11 @@ config SCHED_TICKLESS
 	---help---
 		By default, system time is driven by a periodic timer interrupt.  An
 		alternative configurations is a tick-less configuration in which
-		there is no periodic timer interrupt.  Instead and interval timer is
+		there is no periodic timer interrupt.  Instead an interval timer is
 		used to schedule the next OS time event.  This option selects that
 		tick-less OS option.  If the tick-less OS is selected, then there are
 		additional platform specific interfaces that must be provided as
-		defined include/nuttx/arch.h
+		defined in include/nuttx/arch.h
 
 if SCHED_TICKLESS
 
@@ -219,7 +212,8 @@ config START_DAY
 
 config PREALLOC_TIMERS
 	int "Number of pre-allocated POSIX timers"
-	default 8
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		The number of pre-allocated POSIX timer structures.  The system manages a
 		pool of preallocated timer structures to minimize dynamic allocations.  Set to
@@ -250,7 +244,8 @@ if IRQCHAIN
 
 config PREALLOC_IRQCHAIN
 	int "Number of pre-allocated irq chains"
-	default 8
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		The number of pre-allocated irq chain structures.  The system manages
 		a pool of preallocated irq chain structures to minimize dynamic
@@ -597,6 +592,14 @@ config SCHED_USER_IDENTITY
 		Those can then be managed using the interfaces.  Child tasks will
 		inherit the UID and GID of its parent.
 
+config SCHED_THREAD_LOCAL
+	bool "Support __thread/thread_local keyword"
+	default n
+	depends on ARCH_HAVE_THREAD_LOCAL
+	---help---
+		This option enables architecture-specific TLS support (__thread/thread_local keyword)
+		Note: Toolchain must be compiled with '--enable-tls' enabled
+
 endmenu # Tasks and Scheduling
 
 menu "Pthread Options"
@@ -677,7 +680,7 @@ config CANCELLATION_POINTS
 	default n
 	---help---
 		Enable POSIX cancellation points for pthread_cancel().  If selected,
-		cancellation points will also used with the () task_delete() API even if
+		cancellation points will also used with the task_delete() API even if
 		pthreads are not enabled.
 
 endmenu # Pthread Options
@@ -744,48 +747,48 @@ config SCHED_CRITMONITOR_MAXTIME_THREAD
 	default 0
 	---help---
 		Thread execution time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_THREAD, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_THREAD, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 config SCHED_CRITMONITOR_MAXTIME_WQUEUE
 	int "WORK queue max execution time"
 	default SCHED_CRITMONITOR_MAXTIME_THREAD
 	---help---
 		Worker execution time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_WQUEUE, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_WQUEUE, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 config SCHED_CRITMONITOR_MAXTIME_PREEMPTION
 	int "Pre-emption (sched_lock) max holding time"
 	default SCHED_CRITMONITOR_MAXTIME_WQUEUE
 	---help---
 		Pre-emption holding time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_PREEMPTION, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_PREEMPTION, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 config SCHED_CRITMONITOR_MAXTIME_CSECTION
 	int "Csection (enter_critical_section) max holding time"
 	default SCHED_CRITMONITOR_MAXTIME_PREEMPTION
 	---help---
 		Csection holding time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_CSECTION, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_CSECTION, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 config SCHED_CRITMONITOR_MAXTIME_IRQ
 	int "IRQ max execution time"
 	default SCHED_CRITMONITOR_MAXTIME_CSECTION
 	---help---
 		IRQ handler execution time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_IRQ, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_IRQ, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 config SCHED_CRITMONITOR_MAXTIME_WDOG
 	int "WDOG callback max execution time"
 	default SCHED_CRITMONITOR_MAXTIME_IRQ
 	---help---
 		Wdog callback execution time should be smaller than
-		SCHED_CRITMONITOR_MAXTIME_WDOG, or system will give a warnning.
-		For debugging system lantency, 0 means disabled.
+		SCHED_CRITMONITOR_MAXTIME_WDOG, or system will give a warning.
+		For debugging system latency, 0 means disabled.
 
 endif # SCHED_CRITMONITOR
 
@@ -935,6 +938,21 @@ config SCHED_INSTRUMENTATION
 
 			void sched_note_start(FAR struct tcb_s *tcb);
 			void sched_note_stop(FAR struct tcb_s *tcb);
+
+		If CONFIG_SMP is enabled, then these additional interfaces are
+		expected:
+
+			void sched_note_cpu_start(FAR struct tcb_s *tcb, int cpu);
+			void sched_note_cpu_started(FAR struct tcb_s *tcb);
+
+if SCHED_INSTRUMENTATION
+
+config SCHED_INSTRUMENTATION_SWITCH
+	bool "Use note switch for instrumentation"
+	default n
+	---help---
+		Use note switch for instrumentation.
+
 			void sched_note_suspend(FAR struct tcb_s *tcb);
 			void sched_note_resume(FAR struct tcb_s *tcb);
 
@@ -946,12 +964,10 @@ config SCHED_INSTRUMENTATION
 			void sched_note_cpu_resume(FAR struct tcb_s *tcb, int cpu);
 			void sched_note_cpu_resumed(FAR struct tcb_s *tcb);
 
-		NOTE: These are internal OS interfaces and are called at at very
+		NOTE: These are internal OS interfaces and are called at very
 		critical locations in the OS. There is very little that can be
 		done in these interfaces.  For example, normal devices may not be
 		used; syslog output cannot be performed.
-
-if SCHED_INSTRUMENTATION
 
 config SCHED_INSTRUMENTATION_EXTERNAL
 	bool "System performance monitor endpoints are external"
@@ -962,7 +978,7 @@ config SCHED_INSTRUMENTATION_EXTERNAL
 		SCHED_INSTRUMENTATION_SPINLOCKS, SCHED_INSTRUMENTATION_SYSCALL and
 		SCHED_INSTRUMENTATION_IRQHANDLER. Otherwise the common code will implement
 		these callbacks and packet the arguments into note_ struct. Then the board
-		-specific logic just need to implement one callback:
+		-specific logic just needs to implement one callback:
 
 		  void sched_note_add(FAR const void *note, size_t notelen);
 
@@ -1026,6 +1042,19 @@ config SCHED_INSTRUMENTATION_IRQHANDLER
 		must provide this additional logic.
 
 			void sched_note_irqhandler(int irq, FAR void *handler, bool enter);
+
+config SCHED_INSTRUMENTATION_DUMP
+	bool "Use note dump for instrumentation"
+	default n
+	---help---
+		Use note dump for instrumentation.
+
+			void sched_note_string(FAR const char *buf);
+			void sched_note_dump(uint32_t module, uint8_t event, FAR const void *buf, size_t len);
+			void sched_note_vprintf(FAR const char *fmt, va_list va);
+			void sched_note_vbprintf(uint32_t module, uint8_t event, FAR const char *fmt, va_list va);
+			void sched_note_printf(FAR const char *fmt, ...) printflike(1, 2);
+			void sched_note_bprintf(uint32_t module, uint8_t event, FAR const char *fmt, ...);
 
 config SCHED_INSTRUMENTATION_HIRES
 	bool "Use Hi-Res RTC for instrumentation"
@@ -1154,7 +1183,8 @@ if PRIORITY_INHERITANCE
 
 config SEM_PREALLOCHOLDERS
 	int "Number of pre-allocated holders"
-	default 16
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		This setting is only used if priority inheritance is enabled.
 		It defines the maximum number of different threads (minus one) that
@@ -1348,7 +1378,8 @@ menu "Signal Configuration"
 
 config SIG_PREALLOC_IRQ_ACTIONS
 	int "Number of pre-allocated irq actions"
-	default 8
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		The number of pre-allocated irq action structures.
 
@@ -1575,14 +1606,16 @@ menu "POSIX Message Queue Options"
 
 config PREALLOC_MQ_MSGS
 	int "Number of pre-allocated messages"
-	default 4
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		The number of pre-allocated message structures.  The system manages
 		a pool of preallocated message structures to minimize dynamic allocations
 
 config PREALLOC_MQ_IRQ_MSGS
 	int "Number of pre-allocated irq messages"
-	default 8
+	default 4 if DEFAULT_SMALL
+	default 8 if !DEFAULT_SMALL
 	---help---
 		The number of pre-allocated irq message structures.
 
@@ -1793,14 +1826,12 @@ menu "Stack and heap information"
 
 config DEFAULT_TASK_STACKSIZE
 	int "The default stack size for tasks"
-	default 65536 if ARCH_SIM
 	default 2048
 	---help---
 		The default stack size for tasks.
 
 config IDLETHREAD_STACKSIZE
 	int "Idle thread stack size"
-	default DEFAULT_TASK_STACKSIZE if ARCH_SIM
 	default 1024
 	---help---
 		The size of the initial stack used by the IDLE thread.  The IDLE thread

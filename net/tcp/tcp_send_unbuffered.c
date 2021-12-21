@@ -236,13 +236,41 @@ static uint16_t tcpsend_eventhandler(FAR struct net_driver_s *dev,
 
   else if ((flags & TCP_REXMIT) != 0)
     {
-      /* Yes.. in this case, reset the number of bytes that have been sent
-       * to the number of bytes that have been ACKed.
+      /* According to RFC 6298 (5.4), retransmit the earliest segment
+       * that has not been acknowledged by the TCP receiver.
        */
 
-      pstate->snd_sent = pstate->snd_acked;
+      /* Reconstruct the length of the earliest segment to be retransmitted */
 
-      /* Fall through to re-send data from the last that was ACKed */
+      uint32_t sndlen = pstate->snd_buflen - pstate->snd_acked;
+
+      if (sndlen > conn->mss)
+        {
+          sndlen = conn->mss;
+        }
+
+      conn->rexmit_seq = pstate->snd_isn + pstate->snd_acked;
+
+#ifdef NEED_IPDOMAIN_SUPPORT
+      /* If both IPv4 and IPv6 support are enabled, then we will need to
+       * select which one to use when generating the outgoing packet.
+       * If only one domain is selected, then the setup is already in
+       * place and we need do nothing.
+       */
+
+      tcpsend_ipselect(dev, conn);
+#endif
+      /* Then set-up to send that amount of data. (this won't actually
+       * happen until the polling cycle completes).
+       */
+
+      devif_send(dev,
+                 &pstate->snd_buffer[pstate->snd_acked],
+                 sndlen);
+
+      /* Continue waiting */
+
+      return flags;
     }
 
   /* Check for a loss of connection */
@@ -435,7 +463,8 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
 
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
-  if (psock == NULL || psock->s_conn == NULL)
+  if (psock == NULL || psock->s_type != SOCK_STREAM ||
+      psock->s_conn == NULL)
     {
       nerr("ERROR: Invalid socket\n");
       ret = -EBADF;
@@ -447,7 +476,7 @@ ssize_t psock_tcp_send(FAR struct socket *psock,
    * guarantee the state won't change until we have the network locked.
    */
 
-  if (psock->s_type != SOCK_STREAM)
+  if (!_SS_ISCONNECTED(psock->s_flags))
     {
       nerr("ERROR: Not connected\n");
       ret = -ENOTCONN;

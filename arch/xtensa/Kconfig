@@ -22,7 +22,6 @@ config ARCH_CHIP_ESP32
 	select LIBC_ARCH_MEMCPY
 	select LIBC_ARCH_MEMCHR
 	select LIBC_ARCH_MEMCMP
-	select LIBC_ARCH_MEMCCMP
 	select LIBC_ARCH_MEMMOVE
 	select LIBC_ARCH_MEMSET
 	---help---
@@ -49,7 +48,6 @@ config ARCH_CHIP_ESP32S2
 	select LIBC_ARCH_MEMCPY
 	select LIBC_ARCH_MEMCHR
 	select LIBC_ARCH_MEMCMP
-	select LIBC_ARCH_MEMCCMP
 	select LIBC_ARCH_MEMMOVE
 	select LIBC_ARCH_MEMSET
 	select LIBC_ARCH_STRCHR
@@ -203,7 +201,7 @@ config XTENSA_INTBACKTRACE
 config XTENSA_IMEM_USE_SEPARATE_HEAP
 	bool "Use a separate heap for internal memory"
 	default n
-	help
+	---help---
 		This is a separate internal heap that's used by drivers when certain operations
 		are not possible with the provided buffer(s).
 		Mainly, when the provided buffer comes from external RAM and a DMA or flash
@@ -218,9 +216,28 @@ config XTENSA_IMEM_REGION_SIZE
 config XTENSA_EXTMEM_BSS
 	bool "Allow BSS section in external memory"
 	default n
-	help
+	---help---
 		Adds a section and an attribute that allows to force variables into
 		the external memory.
+
+config XTENSA_SEMIHOSTING_HOSTFS
+	bool "Semihosting HostFS"
+	depends on FS_HOSTFS
+	---help---
+		Mount HostFS through semihosting.
+
+		This doesn't support some directory operations like readdir because
+		of the limitations of semihosting mechanism.
+
+if XTENSA_SEMIHOSTING_HOSTFS
+
+config XTENSA_SEMIHOSTING_HOSTFS_CACHE_COHERENCE
+	bool "Cache coherence in semihosting hostfs"
+	depends on ARCH_DCACHE
+	---help---
+		Flush & Invalidte cache before & after sim call.
+
+endif
 
 choice
 	prompt "Toolchain Selection"
