@@ -126,7 +126,8 @@ static const struct sensor_info g_sensor_info[] =
   {sizeof(struct sensor_event_hrate),           "hrate"},
   {sizeof(struct sensor_event_hbeat),           "hbeat"},
   {sizeof(struct sensor_event_ecg),             "ecg"},
-  {sizeof(struct sensor_event_ppg),             "ppg"},
+  {sizeof(struct sensor_event_ppgd),            "ppgd"},
+  {sizeof(struct sensor_event_ppgq),            "ppgq"},
   {sizeof(struct sensor_event_impd),            "impd"},
   {sizeof(struct sensor_event_ots),             "ots"},
   {sizeof(struct sensor_event_gps_satellite),   "gps_satellite"},
@@ -141,6 +142,9 @@ static const struct file_operations g_sensor_fops =
   NULL,           /* seek  */
   sensor_ioctl,   /* ioctl */
   sensor_poll     /* poll  */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL          /* unlink */
+#endif
 };
 
 /****************************************************************************

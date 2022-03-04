@@ -40,14 +40,14 @@ config ESP32S2_INSTRUCTION_CACHE_16KB
 endchoice # ESP32S2 Instruction CACHE size
 
 choice
-	prompt "Instruction CACHE Size"
-	default ESP32S2_INSTRUCTION_CACHE_8KB
+	prompt "Data CACHE Size"
+	default ESP32S2_DATA_CACHE_8KB
 	depends on ARCH_CHIP_ESP32S2
 
 config ESP32S2_DATA_CACHE_0KB
 	bool "No DATA CACHE"
 	---help---
-		Use 8KB of SRAM as Data Cache
+		Disable Data Cache
 
 config ESP32S2_DATA_CACHE_8KB
 	bool "8KB"
@@ -80,6 +80,16 @@ config ESP32S2_FLASH_8M
 config ESP32S2_FLASH_16M
 	bool
 	default n
+
+config ESP32S2_ESPTOOLPY_NO_STUB
+	bool "Disable download stub"
+	default n
+	---help---
+		The flasher tool sends a precompiled download stub first by default.
+		That stub allows things like compressed downloads and more.
+		Usually you should not need to disable that feature.
+		It is only required to be disabled in certain scenarios when either
+		Secure Boot V2 or Flash Encryption is enabled.
 
 config ESP32S2_FLASH_DETECT
 	bool "Auto-detect FLASH size"
@@ -376,7 +386,6 @@ config ESP32S2_UART1
 	select ESP32S2_UART
 	select UART1_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
-
 
 config ESP32S2_WIRELESS
 	bool "Wireless"

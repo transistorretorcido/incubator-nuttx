@@ -153,7 +153,16 @@ static struct remoteproc_ops g_rptun_ops =
 
 static const struct file_operations g_rptun_devops =
 {
-  .ioctl = rptun_dev_ioctl,
+  NULL,             /* open */
+  NULL,             /* close */
+  NULL,             /* read */
+  NULL,             /* write */
+  NULL,             /* seek */
+  rptun_dev_ioctl,  /* ioctl */
+  NULL              /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL            /* unlink */
+#endif
 };
 
 #ifdef CONFIG_RPTUN_LOADER
@@ -938,7 +947,7 @@ int rptun_initialize(FAR struct rptun_dev_s *dev)
   nxsem_set_protocol(&priv->sem, SEM_PRIO_NONE);
 
   snprintf(name, 32, "/dev/rptun/%s", RPTUN_GET_CPUNAME(dev));
-  ret = register_driver(name, &g_rptun_devops, 0666, priv);
+  ret = register_driver(name, &g_rptun_devops, 0222, priv);
   if (ret < 0)
     {
       goto err_driver;

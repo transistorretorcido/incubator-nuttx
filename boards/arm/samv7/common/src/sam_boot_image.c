@@ -36,6 +36,8 @@
 #include "arm_arch.h"
 #include "barriers.h"
 
+#ifdef CONFIG_BOARDCTL_BOOT_IMAGE
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -57,9 +59,7 @@ struct arm_vector_table
  ****************************************************************************/
 
 static void cleanup_arm_nvic(void);
-#ifdef CONFIG_ARMV7M_SYSTICK
 static void systick_disable(void);
-#endif
 
 /****************************************************************************
  * Private Functions
@@ -103,7 +103,6 @@ static void cleanup_arm_nvic(void)
     }
 }
 
-#ifdef CONFIG_ARMV7M_SYSTICK
 /****************************************************************************
  * Name:  systick_disable
  *
@@ -124,7 +123,6 @@ static void systick_disable(void)
   putreg32(NVIC_SYSTICK_RELOAD_MASK, NVIC_SYSTICK_RELOAD);
   putreg32(0, NVIC_SYSTICK_CURRENT);
 }
-#endif
 
 /****************************************************************************
  * Public Functions
@@ -158,9 +156,7 @@ int board_boot_image(FAR const char *path, uint32_t hdr_size)
       return bytes < 0 ? bytes : -1;
     }
 
-#ifdef CONFIG_ARMV7M_SYSTICK
   systick_disable();
-#endif
 
   cleanup_arm_nvic();
 
@@ -184,3 +180,5 @@ int board_boot_image(FAR const char *path, uint32_t hdr_size)
 
   return 0;
 }
+
+#endif /* CONFIG_BOARDCTL_BOOT_IMAGE */

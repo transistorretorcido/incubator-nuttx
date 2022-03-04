@@ -59,7 +59,6 @@ struct btn_upperhalf_s
 
   FAR const struct btn_lowerhalf_s *bu_lower;
 
-  btn_buttonset_t bu_enabled; /* Set of currently enabled button interrupts */
   btn_buttonset_t bu_sample;  /* Last sampled button states */
   sem_t bu_exclsem;           /* Supports exclusive access to the device */
 
@@ -96,6 +95,7 @@ struct btn_open_s
    * driver events.
    */
 
+  bool bo_pending;
   FAR struct pollfd *bo_fds[CONFIG_INPUT_BUTTONS_NPOLLWAITERS];
 };
 
@@ -124,6 +124,8 @@ static int     btn_open(FAR struct file *filep);
 static int     btn_close(FAR struct file *filep);
 static ssize_t btn_read(FAR struct file *filep, FAR char *buffer,
                         size_t buflen);
+static ssize_t btn_write(FAR struct file *filep, FAR const char *buffer,
+                         size_t buflen);
 static int     btn_ioctl(FAR struct file *filep, int cmd,
                          unsigned long arg);
 static int     btn_poll(FAR struct file *filep, FAR struct pollfd *fds,
@@ -138,10 +140,13 @@ static const struct file_operations btn_fops =
   btn_open,  /* open */
   btn_close, /* close */
   btn_read,  /* read */
-  NULL,      /* write */
+  btn_write, /* write */
   NULL,      /* seek */
   btn_ioctl, /* ioctl */
   btn_poll   /* poll */
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL     /* unlink */
+#endif
 };
 
 /****************************************************************************
@@ -277,6 +282,10 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
 
   for (opriv = priv->bu_open; opriv; opriv = opriv->bo_flink)
     {
+      /* Always set bo_pending true, only clear it after button read */
+
+      opriv->bo_pending = true;
+
       /* Have any poll events occurred? */
 
       if ((press & opriv->bo_pollevents.bp_press)     != 0 ||
@@ -311,10 +320,6 @@ static void btn_sample(FAR struct btn_upperhalf_s *priv)
                              SI_QUEUE, &opriv->bo_work);
         }
     }
-
-  /* Enable/disable interrupt handling */
-
-  btn_enable(priv);
 
   priv->bu_sample = sample;
   leave_critical_section(flags);
@@ -488,11 +493,13 @@ static ssize_t btn_read(FAR struct file *filep, FAR char *buffer,
                         size_t len)
 {
   FAR struct inode *inode;
+  FAR struct btn_open_s *opriv;
   FAR struct btn_upperhalf_s *priv;
   FAR const struct btn_lowerhalf_s *lower;
   int ret;
 
   DEBUGASSERT(filep && filep->f_inode);
+  opriv = filep->f_priv;
   inode = filep->f_inode;
   DEBUGASSERT(inode->i_private);
   priv  = (FAR struct btn_upperhalf_s *)inode->i_private;
@@ -505,7 +512,7 @@ static ssize_t btn_read(FAR struct file *filep, FAR char *buffer,
 
   if (len < sizeof(btn_buttonset_t))
     {
-      ierr("ERROR: buffer too small: %lu\n", (unsigned long)len);
+      ierr("ERROR: buffer too small: %zu\n", len);
       return -EINVAL;
     }
 
@@ -523,9 +530,65 @@ static ssize_t btn_read(FAR struct file *filep, FAR char *buffer,
   lower = priv->bu_lower;
   DEBUGASSERT(lower && lower->bl_buttons);
   *(FAR btn_buttonset_t *)buffer = lower->bl_buttons(lower);
+  opriv->bo_pending = false;
 
   btn_givesem(&priv->bu_exclsem);
   return (ssize_t)sizeof(btn_buttonset_t);
+}
+
+/****************************************************************************
+ * Name: btn_write
+ ****************************************************************************/
+
+static ssize_t btn_write(FAR struct file *filep, FAR const char *buffer,
+                         size_t buflen)
+{
+  FAR struct inode *inode;
+  FAR struct btn_upperhalf_s *priv;
+  FAR const struct btn_lowerhalf_s *lower;
+  int ret;
+
+  DEBUGASSERT(filep && filep->f_inode);
+  inode = filep->f_inode;
+  DEBUGASSERT(inode->i_private);
+  priv  = (FAR struct btn_upperhalf_s *)inode->i_private;
+
+  /* Make sure that the buffer is sufficiently large to hold at least one
+   * complete sample.
+   *
+   * REVISIT:  Should also check buffer alignment.
+   */
+
+  if (buflen < sizeof(btn_buttonset_t))
+    {
+      ierr("ERROR: buffer too small: %zu\n", buflen);
+      return -EINVAL;
+    }
+
+  /* Get exclusive access to the driver structure */
+
+  ret = btn_takesem(&priv->bu_exclsem);
+  if (ret < 0)
+    {
+      ierr("ERROR: btn_takesem failed: %d\n", ret);
+      return ret;
+    }
+
+  /* Write the current state of the buttons */
+
+  lower = priv->bu_lower;
+  DEBUGASSERT(lower);
+  if (lower->bl_write)
+    {
+      ret = lower->bl_write(lower, buffer, buflen);
+    }
+  else
+    {
+      ret = -ENOSYS;
+    }
+
+  btn_givesem(&priv->bu_exclsem);
+  return (ssize_t)ret;
 }
 
 /****************************************************************************
@@ -704,6 +767,19 @@ static int btn_poll(FAR struct file *filep, FAR struct pollfd *fds,
 
               opriv->bo_fds[i] = fds;
               fds->priv = &opriv->bo_fds[i];
+
+              /* Report if the event is pending */
+
+              if (opriv->bo_pending)
+                {
+                  fds->revents |= (fds->events & POLLIN);
+                  if (fds->revents != 0)
+                    {
+                      iinfo("Report events: %02x\n", fds->revents);
+                      nxsem_post(fds->sem);
+                    }
+                }
+
               break;
             }
         }

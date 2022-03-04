@@ -35,7 +35,7 @@
 
 /* Marcos for J-Link plugin API */
 
-#define PLUGIN_VER                100
+#define API_VER                   101
 #define DISPLAY_LENGTH            256
 #define THREADID_BASE             1
 
@@ -59,6 +59,25 @@
 #define PERROR                    g_plugin_priv.jops->erroroutf
 #define PLOG                      g_plugin_priv.jops->logoutf
 
+/* GCC specific definitions */
+
+#ifdef __GNUC__
+
+/* The packed attribute informs GCC that the structure elements are packed,
+ * ignoring other alignment rules.
+ */
+
+#  define begin_packed_struct
+#  define end_packed_struct __attribute__ ((packed))
+
+#else
+
+#  warning "Unsupported compiler"
+#  define begin_packed_struct
+#  define end_packed_struct
+
+#endif
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -72,15 +91,22 @@ enum symbol_e
   NSYMBOLS
 };
 
-struct tcbinfo_s
+begin_packed_struct struct tcbinfo_s
 {
   uint16_t pid_off;
   uint16_t state_off;
   uint16_t pri_off;
   uint16_t name_off;
   uint16_t reg_num;
+  begin_packed_struct
+  union
+  {
+    uint8_t  u[8];
+    uint16_t *p;
+  }
+  end_packed_struct reg_off;
   uint16_t reg_offs[0];
-};
+} end_packed_struct;
 
 struct symbols_s
 {
@@ -249,12 +275,21 @@ static int update_tcbinfo(struct plugin_priv_s *priv)
     {
       uint16_t reg_num;
       int ret;
+      uint32_t reg_off;
 
       ret = READU16(g_symbols[TCBINFO].address +
                     offsetof(struct tcbinfo_s, reg_num), &reg_num);
       if (ret != 0 || !reg_num)
         {
           PERROR("error reading regs ret %d\n", ret);
+          return ret;
+        }
+
+      ret = READU32(g_symbols[TCBINFO].address +
+                    offsetof(struct tcbinfo_s, reg_off), &reg_off);
+      if (ret != 0 || !reg_off)
+        {
+          PERROR("error in read regoffs address ret %d\n", ret);
           return ret;
         }
 
@@ -268,10 +303,18 @@ static int update_tcbinfo(struct plugin_priv_s *priv)
         }
 
       ret = READMEM(g_symbols[TCBINFO].address, (char *)priv->tcbinfo,
-                    sizeof(struct tcbinfo_s) + reg_num * sizeof(uint16_t));
-      if (ret != sizeof(struct tcbinfo_s) + reg_num * sizeof(uint16_t))
+                    sizeof(struct tcbinfo_s));
+      if (ret != sizeof(struct tcbinfo_s))
         {
           PERROR("error in read tcbinfo_s ret %d\n", ret);
+          return ret;
+        }
+
+      ret = READMEM(reg_off, (char *)&priv->tcbinfo->reg_offs[0],
+                    reg_num * sizeof(uint16_t));
+      if (ret != reg_num * sizeof(uint16_t))
+        {
+          PERROR("error in read tcbinfo_s reg_offs ret %d\n", ret);
           return ret;
         }
 
@@ -371,7 +414,32 @@ int RTOS_Init(const struct jlink_ops_s *api, uint32_t core)
 
 uint32_t RTOS_GetVersion(void)
 {
-  return PLUGIN_VER;
+  return API_VER;
+}
+
+int RTOS_UpdateThreads(void)
+{
+  int ret;
+
+  ret = update_tcbinfo(&g_plugin_priv);
+  if (ret)
+    {
+      return ret;
+    }
+
+  ret = update_pidhash(&g_plugin_priv);
+  if (ret)
+    {
+      return ret;
+    }
+
+  ret = normalize_tcb(&g_plugin_priv);
+  if (ret)
+    {
+      return ret;
+    }
+
+  return 0;
 }
 
 struct symbols_s *RTOS_GetSymbols(void)
@@ -381,6 +449,11 @@ struct symbols_s *RTOS_GetSymbols(void)
 
 uint32_t RTOS_GetNumThreads(void)
 {
+  if (g_plugin_priv.ntcb == 0)
+    {
+      RTOS_UpdateThreads();
+    }
+
   return g_plugin_priv.ntcb;
 }
 
@@ -612,31 +685,6 @@ int RTOS_SetThreadRegList(char *hexreglist, uint32_t threadid)
         {
           return -1;
         }
-    }
-
-  return 0;
-}
-
-int RTOS_UpdateThreads(void)
-{
-  int ret;
-
-  ret = update_tcbinfo(&g_plugin_priv);
-  if (ret)
-    {
-      return ret;
-    }
-
-  ret = update_pidhash(&g_plugin_priv);
-  if (ret)
-    {
-      return ret;
-    }
-
-  ret = normalize_tcb(&g_plugin_priv);
-  if (ret)
-    {
-      return ret;
     }
 
   return 0;

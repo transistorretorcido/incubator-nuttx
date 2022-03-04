@@ -96,8 +96,7 @@
 #define TCB_FLAG_NONCANCELABLE     (1 << 2)                      /* Bit 2: Pthread is non-cancelable */
 #define TCB_FLAG_CANCEL_DEFERRED   (1 << 3)                      /* Bit 3: Deferred (vs asynch) cancellation type */
 #define TCB_FLAG_CANCEL_PENDING    (1 << 4)                      /* Bit 4: Pthread cancel is pending */
-#define TCB_FLAG_CANCEL_DOING      (1 << 5)                      /* Bit 4: Pthread cancel/exit is doing */
-#define TCB_FLAG_POLICY_SHIFT      (6)                           /* Bit 5-6: Scheduling policy */
+#define TCB_FLAG_POLICY_SHIFT      (5)                           /* Bit 5-6: Scheduling policy */
 #define TCB_FLAG_POLICY_MASK       (3 << TCB_FLAG_POLICY_SHIFT)
 #  define TCB_FLAG_SCHED_FIFO      (0 << TCB_FLAG_POLICY_SHIFT)  /* FIFO scheding policy */
 #  define TCB_FLAG_SCHED_RR        (1 << TCB_FLAG_POLICY_SHIFT)  /* Round robin scheding policy */
@@ -186,13 +185,15 @@
 #endif
 
 #ifdef CONFIG_DEBUG_TCBINFO
-#  define TCB_PID_OFF                (offsetof(struct tcb_s, pid))
-#  define TCB_STATE_OFF              (offsetof(struct tcb_s, task_state))
-#  define TCB_PRI_OFF                (offsetof(struct tcb_s, sched_priority))
+#  define TCB_PID_OFF                offsetof(struct tcb_s, pid)
+#  define TCB_STATE_OFF              offsetof(struct tcb_s, task_state)
+#  define TCB_PRI_OFF                offsetof(struct tcb_s, sched_priority)
 #if CONFIG_TASK_NAME_SIZE > 0
-#  define TCB_NAME_OFF               (offsetof(struct tcb_s, name))
+#  define TCB_NAME_OFF               offsetof(struct tcb_s, name)
+#else
+#  define TCB_NAME_OFF               0
 #endif
-#  define TCB_REG_OFF(reg)           (offsetof(struct tcb_s, xcp.regs[reg]))
+#  define TCB_REG_OFF(reg)           offsetof(struct tcb_s, xcp.regs[reg])
 #endif
 
 /****************************************************************************
@@ -609,6 +610,7 @@ struct tcb_s
   uint8_t  pend_reprios[CONFIG_SEM_NNESTPRIO];
 #endif
   uint8_t  base_priority;                /* "Normal" priority of the thread */
+  FAR struct semholder_s *holdsem;       /* List of held semaphores         */
 #endif
 
 #ifdef CONFIG_SMP
@@ -752,7 +754,6 @@ struct pthread_tcb_s
 
   pthread_trampoline_t trampoline;       /* User-space pthread startup function */
   pthread_addr_t arg;                    /* Startup argument                    */
-  pthread_exitroutine_t exit;            /* User-space pthread exit function    */
   FAR void *joininfo;                    /* Detach-able info to support join    */
 };
 #endif /* !CONFIG_DISABLE_PTHREAD */
@@ -764,7 +765,7 @@ struct pthread_tcb_s
  */
 
 #ifdef CONFIG_DEBUG_TCBINFO
-struct tcbinfo_s
+begin_packed_struct struct tcbinfo_s
 {
   uint16_t pid_off;                      /* Offset of tcb.pid               */
   uint16_t state_off;                    /* Offset of tcb.task_state        */
@@ -772,7 +773,7 @@ struct tcbinfo_s
   uint16_t name_off;                     /* Offset of tcb.name              */
   uint16_t reg_num;                      /* Num of regs in tcbinfo.reg_offs */
 
-  /* Offsets of xcp.regs, order in GDB org.gnu.gdb.xxx feature.
+  /* Offset pointer of xcp.regs, order in GDB org.gnu.gdb.xxx feature.
    * Please refer:
    * https://sourceware.org/gdb/current/onlinedocs/gdb/ARM-Features.html
    * https://sourceware.org/gdb/current/onlinedocs/gdb/RISC_002dV-Features
@@ -780,8 +781,14 @@ struct tcbinfo_s
    * value 0: This regsiter was not priovided by NuttX
    */
 
-  uint16_t reg_offs[XCPTCONTEXT_REGS];
-};
+  begin_packed_struct
+  union
+  {
+    uint8_t             u[8];
+    FAR const uint16_t *p;
+  }
+  end_packed_struct reg_off;
+} end_packed_struct;
 #endif
 
 /* This is the callback type used by nxsched_foreach() */
@@ -807,13 +814,8 @@ extern "C"
 #ifdef CONFIG_SCHED_CRITMONITOR
 /* Maximum time with pre-emption disabled or within critical section. */
 
-#ifdef CONFIG_SMP_NCPUS
 EXTERN uint32_t g_premp_max[CONFIG_SMP_NCPUS];
 EXTERN uint32_t g_crit_max[CONFIG_SMP_NCPUS];
-#else
-EXTERN uint32_t g_premp_max[1];
-EXTERN uint32_t g_crit_max[1];
-#endif
 #endif /* CONFIG_SCHED_CRITMONITOR */
 
 #ifdef CONFIG_DEBUG_TCBINFO

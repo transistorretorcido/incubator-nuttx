@@ -100,11 +100,7 @@ static struct note_filter_s g_note_filter =
 };
 
 #ifdef CONFIG_SCHED_INSTRUMENTATION_IRQHANDLER
-#ifdef CONFIG_SMP
 static unsigned int g_note_disabled_irq_nest[CONFIG_SMP_NCPUS];
-#else
-static unsigned int g_note_disabled_irq_nest[1];
-#endif
 #endif
 #endif
 
@@ -207,6 +203,41 @@ static inline int note_isenabled(void)
 
   return true;
 }
+
+/****************************************************************************
+ * Name: note_isenabled_switch
+ *
+ * Description:
+ *   Check whether the switch instrumentation is enabled.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   True is returned if the instrumentation is enabled.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_SWITCH
+static inline int note_isenabled_switch(void)
+{
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER
+  if (!note_isenabled())
+    {
+      return false;
+    }
+
+  /* If the switch trace is disabled, do nothing. */
+
+  if ((g_note_filter.mode.flag & NOTE_FILTER_MODE_FLAG_SWITCH) == 0)
+    {
+      return false;
+    }
+#endif
+
+  return true;
+}
+#endif
 
 /****************************************************************************
  * Name: note_isenabled_syscall
@@ -315,6 +346,41 @@ static inline int note_isenabled_irq(int irq, bool enter)
           g_note_disabled_irq_nest[cpu]--;
         }
 
+      return false;
+    }
+#endif
+
+  return true;
+}
+#endif
+
+/****************************************************************************
+ * Name: note_isenabled_dump
+ *
+ * Description:
+ *   Check whether the dump instrumentation is enabled.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   True is returned if the instrumentation is enabled.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SCHED_INSTRUMENTATION_DUMP
+static inline int note_isenabled_dump(void)
+{
+#ifdef CONFIG_SCHED_INSTRUMENTATION_FILTER
+  if (!note_isenabled())
+    {
+      return false;
+    }
+
+  /* If the dump trace is disabled, do nothing. */
+
+  if ((g_note_filter.mode.flag & NOTE_FILTER_MODE_FLAG_DUMP) == 0)
+    {
       return false;
     }
 #endif
@@ -456,7 +522,7 @@ void sched_note_suspend(FAR struct tcb_s *tcb)
 {
   struct note_suspend_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -476,7 +542,7 @@ void sched_note_resume(FAR struct tcb_s *tcb)
 {
   struct note_resume_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -536,7 +602,7 @@ void sched_note_cpu_pause(FAR struct tcb_s *tcb, int cpu)
 {
   struct note_cpu_pause_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -556,7 +622,7 @@ void sched_note_cpu_paused(FAR struct tcb_s *tcb)
 {
   struct note_cpu_paused_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -575,7 +641,7 @@ void sched_note_cpu_resume(FAR struct tcb_s *tcb, int cpu)
 {
   struct note_cpu_resume_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -595,7 +661,7 @@ void sched_note_cpu_resumed(FAR struct tcb_s *tcb)
 {
   struct note_cpu_resumed_s note;
 
-  if (!note_isenabled())
+  if (!note_isenabled_switch())
     {
       return;
     }
@@ -814,7 +880,7 @@ void sched_note_string(FAR const char *buf)
   unsigned int length;
   FAR struct tcb_s *tcb = this_task();
 
-  if (!note_isenabled())
+  if (!note_isenabled_dump())
     {
       return;
     }
@@ -847,7 +913,7 @@ void sched_note_dump(uint32_t module, uint8_t event,
   unsigned int length;
   FAR struct tcb_s *tcb = this_task();
 
-  if (!note_isenabled())
+  if (!note_isenabled_dump())
     {
       return;
     }
@@ -883,7 +949,7 @@ void sched_note_vprintf(FAR const char *fmt, va_list va)
   unsigned int length;
   FAR struct tcb_s *tcb = this_task();
 
-  if (!note_isenabled())
+  if (!note_isenabled_dump())
     {
       return;
     }
@@ -945,7 +1011,7 @@ void sched_note_vbprintf(uint32_t module, uint8_t event,
   int next = 0;
   FAR struct tcb_s *tcb = this_task();
 
-  if (!note_isenabled())
+  if (!note_isenabled_dump())
     {
       return;
     }

@@ -17,8 +17,7 @@ if DISABLE_OS_API
 
 config DISABLE_POSIX_TIMERS
 	bool "Disable POSIX timers"
-	default y if DEFAULT_SMALL
-	default n if !DEFAULT_SMALL
+	default DEFAULT_SMALL
 	---help---
 		Disable support for the the entire POSIX timer family
 		including timer_create(), timer_gettime(), timer_settime(),
@@ -29,17 +28,15 @@ config DISABLE_POSIX_TIMERS
 
 config DISABLE_PTHREAD
 	bool "Disable pthread support"
-	default n
+	default DEFAULT_SMALL
 
 config DISABLE_MQUEUE
 	bool "Disable POSIX message queue support"
-	default y if DEFAULT_SMALL
-	default n if !DEFAULT_SMALL
+	default DEFAULT_SMALL
 
 config DISABLE_ENVIRON
 	bool "Disable environment variable support"
-	default y if DEFAULT_SMALL
-	default n if !DEFAULT_SMALL
+	default DEFAULT_SMALL
 
 endif # DISABLE_OS_API
 
@@ -160,20 +157,6 @@ config SYSTEM_TIME64
 		However, if the system timer rate is significantly higher than 100Hz
 		and/or if a very long "uptime" is required, then this option can be
 		selected to support a 64-bit wide timer.
-
-config CLOCK_MONOTONIC
-	bool "Support CLOCK_MONOTONIC"
-	default n
-	---help---
-		CLOCK_MONOTONIC is an optional standard POSIX clock.  Unlike
-		CLOCK_REALTIME which can move forward and backward when the
-		time-of-day changes, CLOCK_MONOTONIC is the elapsed time since some
-		arbitrary point in the post (the system start-up time for NuttX)
-		and, hence, is always monotonically increasing.  CLOCK_MONOTONIC
-		is, hence, the more appropriate clock for determining time
-		differences.
-
-		The value of the CLOCK_MONOTONIC clock cannot be set via clock_settime().
 
 config ARCH_HAVE_TIMEKEEPING
 	bool
@@ -301,18 +284,18 @@ endif # SMP
 
 choice
 	prompt "Initialization Task"
-	default INIT_ENTRYPOINT if !BUILD_KERNEL
-	default INIT_FILEPATH if !BINFMT_DISABLE
+	default INIT_ENTRY if !BUILD_KERNEL
+	default INIT_FILE if !BINFMT_DISABLE
 	default INIT_NONE if BINFMT_DISABLE
 
 config INIT_NONE
 	bool "None"
 
-config INIT_ENTRYPOINT
-	bool "Via application entry point"
+config INIT_ENTRY
+	bool "Via application entry"
 	depends on !BUILD_KERNEL
 
-config INIT_FILEPATH
+config INIT_FILE
 	bool "Via executable file"
 	depends on !BINFMT_DISABLE
 
@@ -325,39 +308,43 @@ config INIT_ARGS
 		The argument list for user applications. e.g.:
 		  "\"arg1\",\"arg2\",\"arg3\""
 
-if INIT_ENTRYPOINT
-config USER_ENTRYPOINT
-	string "Application entry point"
-	default "main"
-	---help---
-		The name of the entry point for user applications.  For the example
-		applications this is of the form 'app_main' where 'app' is the application
-		name. If not defined, USER_ENTRYPOINT defaults to "main".
-
-config USERMAIN_STACKSIZE
+config INIT_STACKSIZE
 	int "Main thread stack size"
 	default DEFAULT_TASK_STACKSIZE
 	---help---
 		The size of the stack to allocate for the user initialization thread
 		that is started as soon as the OS completes its initialization.
 
-config USERMAIN_PRIORITY
+config INIT_PRIORITY
 	int "init thread priority"
 	default 100
 	---help---
 		The priority of the user initialization thread.
 
-endif # INIT_ENTRYPOINT
+if INIT_ENTRY
+config INIT_ENTRYPOINT
+	string "Application entry point"
+	default "main"
+	---help---
+		The name of the entry point for user applications.  For the example
+		applications this is of the form 'app_main' where 'app' is the application
+		name. If not defined, INIT_ENTRYPOINT defaults to "main".
 
-if INIT_FILEPATH
+config INIT_ENTRYNAME
+	string "Application entry name"
+	default INIT_ENTRYPOINT
 
-config USER_INITPATH
+endif # INIT_ENTRY
+
+if INIT_FILE
+
+config INIT_FILEPATH
 	string "Application initialization path"
 	default "/bin/init"
 	---help---
 		The name of the entry point for user applications.  For the example
 		applications this is of the form 'app_main' where 'app' is the application
-		name. If not defined, USER_ENTRYPOINT defaults to "main".
+		name. If not defined, INIT_ENTRYPOINT defaults to "main".
 
 config INIT_SYMTAB
 	string "Symbol table"
@@ -423,7 +410,7 @@ config INIT_MOUNT_DATA
 	default ""
 
 endif # INIT_MOUNT
-endif # INIT_FILEPATH
+endif # INIT_FILE
 
 config RR_INTERVAL
 	int "Round robin timeslice (MSEC)"
@@ -654,6 +641,24 @@ config PTHREAD_MUTEX_DEFAULT_UNSAFE
 
 endchoice # Default NORMAL mutex robustness
 
+choice
+	prompt "Default pthread mutex protocol"
+	default PTHREAD_MUTEX_DEFAULT_PRIO_NONE
+
+config PTHREAD_MUTEX_DEFAULT_PRIO_NONE
+	bool "PTHREAD_PRIO_NONE default"
+	---help---
+		By default, pthread mutexes utilize PTHREAD_PRIO_NONE protocol (standard).
+
+config PTHREAD_MUTEX_DEFAULT_PRIO_INHERIT
+	bool "PTHREAD_PRIO_INHERIT default"
+	depends on PRIORITY_INHERITANCE
+	---help---
+		By default, pthread mutexes utilize PTHREAD_PRIO_INHERIT protocol
+		(POSIX non-standard but a reasonable choice for most real-time systems).
+
+endchoice # Default pthread mutex protocol
+
 config PTHREAD_CLEANUP
 	bool "pthread cleanup stack"
 	default n
@@ -671,7 +676,7 @@ config PTHREAD_CLEANUP_STACKSIZE
 		The maximum number of cleanup actions that may be pushed by
 		pthread_clean_push().  This setting will increase the size of EVERY
 		pthread task control block by about n * CONFIG_PTHREAD_CLEANUP_STACKSIZE
-		where n is the size of a pointer, 2* sizeof(uintptr_t), this would be
+		where n is the size of a pointer, 2 * sizeof(uintptr_t), this would be
 		8 for a CPU with 32-bit addressing and 4 for a CPU with 16-bit
 		addressing.
 
@@ -719,26 +724,6 @@ config SCHED_CRITMONITOR
 		the hardware can respond with the interrupt.  Disabling pre-emption
 		adds jitter in the time from when the event is posted in the
 		interrupt handler until the task that responds to the event can run.
-
-		If this option is selected, then the following interfaces must be
-		provided by platform-specific logic:
-
-			uint32_t up_critmon_gettime(void);
-			void up_critmon_convert(uint32_t elapsed, FAR struct timespec *ts);
-
-		The first interface simply provides the current time value in unknown
-		units.  NOTE:  This function may be called early before the timer has
-		been initialized.  In that event, the function should just return a
-		start time of zero.
-
-		Nothing is assumed about the units of this time value.  The following
-		are assumed, however: (1) The time is an unsigned integer value, (2)
-		the time is monotonically increasing, and (3) the elapsed time (also
-		in unknown units) can be obtained by subtracting a start time from
-		the current time.
-
-		The second interface simply converts an elapsed time into well known
-		units for presentation by the ProcFS file system.
 
 if SCHED_CRITMONITOR
 
@@ -1075,13 +1060,15 @@ config SCHED_INSTRUMENTATION_FILTER
 config SCHED_INSTRUMENTATION_FILTER_DEFAULT_MODE
 	hex "Default instrumentation filter mode"
 	depends on SCHED_INSTRUMENTATION_FILTER
-	default 0xf
+	default 0x3f
 	---help---
 		Default mode of the instrumentation filter logic.
 			Bit 0 = Enable instrumentation
-			Bit 1 = Enable syscall instrumentation
-			Bit 2 = Enable IRQ instrumentation
-			Bit 3 = Enable collecting syscall arguments
+			Bit 1 = Enable switch instrumentation
+			Bit 2 = Enable syscall instrumentation
+			Bit 3 = Enable IRQ instrumentation
+			Bit 4 = Enable dump instrumentation
+			Bit 5 = Enable collecting syscall arguments
 
 endif # SCHED_INSTRUMENTATION
 endmenu # Performance Monitoring
@@ -1122,14 +1109,6 @@ config FDCLONE_STDIO
 		stdout, stderr) by task_create() when a new task is started. If set,
 		all files/drivers will appear to be closed in the new task except
 		for stdin, stdout, and stderr.
-
-config SDCLONE_DISABLE
-	bool "Disable cloning of socket descriptors"
-	default n
-	---help---
-	Disable cloning of all socket
-	descriptors by task_create() when a new task is started. If
-	set, all sockets will appear to be closed in the new task.
 
 config NFILE_DESCRIPTORS_PER_BLOCK
 	int "The number of file descriptors per block"
@@ -1399,7 +1378,7 @@ config SIG_EVTHREAD
 config SIG_EVTHREAD_HPWORK
 	bool "SIGEV_EVTHREAD use HPWORK"
 	default n
-	depends on SIG_EVTHREAD && CONFIG_SCHED_HPWORK
+	depends on SIG_EVTHREAD && SCHED_HPWORK
 	---help---
 		if selected, SIGEV_THHREAD will use the high priority work queue.
 		If not, it will use the low priority work queue (if available).

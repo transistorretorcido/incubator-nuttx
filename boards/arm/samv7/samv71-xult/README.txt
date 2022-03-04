@@ -79,7 +79,7 @@ to be resolved.  General problems are listed below.  But see the STATUS
 section associated with each configuration for additional issues specific
 to a particular configuration.
 
-  1. HSCMI. CONFIG_MMCSD_MULTIBLOCK_DISABLE=y is set to disable multi-block
+  1. HSCMI. CONFIG_MMCSD_MULTIBLOCK_LIMIT=1 is set to disable multi-block
      transfers only because I have not yet had a chance to verify this.  The
      is very low priority to me but might be important to you if you are need
      very high performance SD card accesses.
@@ -275,7 +275,7 @@ Enabling HSMCI support. The SAMV7-XULT provides a one, full-size SD memory card 
   Device Drivers -> MMC/SD Driver Support
     CONFIG_MMCSD=y                        : Enable MMC/SD support
     CONFIG_MMSCD_NSLOTS=1                 : One slot per driver instance
-    CONFIG_MMCSD_MULTIBLOCK_DISABLE=y     : (REVISIT)
+    CONFIG_MMCSD_MULTIBLOCK_LIMIT=1     : (REVISIT)
     CONFIG_MMCSD_HAVE_CARDDETECT=y         : Supports card-detect PIOs
     CONFIG_MMCSD_MMCSUPPORT=n             : Interferes with some SD cards
     CONFIG_MMCSD_SPI=n                    : No SPI-based MMC/SD support
@@ -349,12 +349,12 @@ Auto-Mounter
       CONFIG_FS_AUTOMOUNTER=y
 
     Board-Specific Options
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT=y
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT_FSTYPE="vfat"
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT_BLKDEV="/dev/mmcsd0"
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT_MOUNTPOINT="/mnt/sdcard"
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT_DDELAY=1000
-      CONFIG_SAMV71XULT_HSMCI0_AUTOMOUNT_UDELAY=2000
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT=y
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT_FSTYPE="vfat"
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT_BLKDEV="/dev/mmcsd0"
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT_MOUNTPOINT="/mnt/sdcard"
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT_DDELAY=1000
+      CONFIG_SAMV7_HSMCI0_AUTOMOUNT_UDELAY=2000
 
   WARNING:  SD cards should never be removed without first unmounting
   them.  This is to avoid data and possible corruption of the file
@@ -1064,7 +1064,6 @@ Testing has also been performed using the maXTouch Xplained Pro LCD
   *                                                                        *
   **************************************************************************
 
-
 maXTouch Xplained Pro Standard Extension Header
 -----------------------------------------------
 The LCD could be connected either via EXT1 or EXT2 using the 2x10 20-pin
@@ -1352,7 +1351,7 @@ MCAN1 Loopback Test
 SPI Slave
 =========
 
-  An interrutp driven SPI slave driver as added on 2015-08-09 but has not
+  An interrupt driven SPI slave driver as added on 2015-08-09 but has not
   been verified as of this writing. See discussion in include/nuttx/spi/slave.h
   and below.
 
@@ -2087,7 +2086,7 @@ Configuration sub-directories
 
          CONFIG_SCHED_HPWORKSTACKSIZE=2048
          CONFIG_IDLETHREAD_STACKSIZE=1024
-         CONFIG_USERMAIN_STACKSIZE=2048
+         CONFIG_INIT_STACKSIZE=2048
          CONFIG_PTHREAD_STACK_MIN=256
          CONFIG_PTHREAD_STACK_DEFAULT=2048
          CONFIG_POSIX_SPAWN_PROXY_STACKSIZE=1024
@@ -2200,7 +2199,7 @@ Configuration sub-directories
 
          CONFIG_ARCH_INTERRUPTSTACK=2048
          CONFIG_IDLETHREAD_STACKSIZE=1024
-         CONFIG_USERMAIN_STACKSIZE=2048
+         CONFIG_INIT_STACKSIZE=2048
          CONFIG_PTHREAD_STACK_DEFAULT=2048
          ... and others ...
 
@@ -2586,7 +2585,7 @@ Configuration sub-directories
       CONFIG_MCUBOOT_BOOTLOADER=y
 
       CONFIG_SAMV7_FORMAT_MCUBOOT=y
-      CONFIG_USER_ENTRYPOINT="mcuboot_loader_main"
+      CONFIG_INIT_ENTRYPOINT="mcuboot_loader_main"
 
       Flash bootloader using embedded debugger:
       openocd -f interface/cmsis-dap.cfg \
@@ -2651,4 +2650,4 @@ Configuration sub-directories
       CONFIG_MCUBOOT_SLOT_CONFIRM_EXAMPLE=y
 
       CONFIG_SAMV7_FORMAT_MCUBOOT=y
-      CONFIG_USER_ENTRYPOINT="nsh_main"
+      CONFIG_INIT_ENTRYPOINT="nsh_main"

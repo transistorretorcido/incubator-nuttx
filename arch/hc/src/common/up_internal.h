@@ -18,8 +18,8 @@
  *
  ****************************************************************************/
 
-#ifndef __UP_INTERNAL_H
-#define __UP_INTERNAL_H
+#ifndef __ARCH_HC_SRC_COMMON_UP_INTERNAL_H
+#define __ARCH_HC_SRC_COMMON_UP_INTERNAL_H
 
 /****************************************************************************
  * Included Files
@@ -69,6 +69,18 @@
 #ifndef CONFIG_ARCH_INTERRUPTSTACK
 #  define CONFIG_ARCH_INTERRUPTSTACK 0
 #endif
+
+/* The CPU12 stack should be aligned at half-word (2 byte) boundaries. If
+ * necessary frame_size must be rounded up to the next boundary
+ */
+
+#define STACK_ALIGNMENT     2
+
+/* Stack alignment macros */
+
+#define STACK_ALIGN_MASK    (STACK_ALIGNMENT - 1)
+#define STACK_ALIGN_DOWN(a) ((a) & ~STACK_ALIGN_MASK)
+#define STACK_ALIGN_UP(a)   (((a) + STACK_ALIGN_MASK) & ~STACK_ALIGN_MASK)
 
 /* Macros to handle saving and restore interrupt state.  In the current CPU12
  * model, the state is copied from the stack to the TCB, but only
@@ -185,4 +197,4 @@ void up_usbuninitialize(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __UP_INTERNAL_H */
+#endif /* __ARCH_HC_SRC_COMMON_UP_INTERNAL_H */

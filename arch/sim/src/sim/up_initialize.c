@@ -24,13 +24,17 @@
 
 #include <nuttx/config.h>
 
+#include <assert.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/audio/audio.h>
+#include <nuttx/clock.h>
 #include <nuttx/drivers/drivers.h>
 #include <nuttx/fs/loop.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/kthread.h>
+#include <nuttx/motor/foc/foc_dummy.h>
 #include <nuttx/net/loopback.h>
 #include <nuttx/net/tun.h>
 #include <nuttx/net/telnet.h>
@@ -38,6 +42,8 @@
 #include <nuttx/note/note_driver.h>
 #include <nuttx/syslog/syslog_console.h>
 #include <nuttx/serial/pty.h>
+#include <nuttx/spi/spi_flash.h>
+#include <nuttx/spi/qspi_flash.h>
 #include <nuttx/crypto/crypto.h>
 #include <nuttx/power/pm.h>
 
@@ -56,23 +62,24 @@
  *
  ****************************************************************************/
 
-#if defined(CONFIG_FS_SMARTFS) && (defined(CONFIG_SIM_SPIFLASH) || defined(CONFIG_SIM_QSPIFLASH))
+#if defined(CONFIG_FS_SMARTFS) && defined(CONFIG_MTD_SMART) && \
+    (defined(CONFIG_SPI_FLASH) || defined(CONFIG_QSPI_FLASH))
 static void up_init_smartfs(void)
 {
-  FAR struct mtd_dev_s *mtd;
-  int minor = 0;
 #if defined(CONFIG_MTD_M25P) || defined(CONFIG_MTD_W25) || defined(CONFIG_MTD_SST26)
+  FAR struct mtd_dev_s *mtd;
   FAR struct spi_dev_s *spi;
+  int minor = 0;
 #endif
 #ifdef CONFIG_MTD_N25QXXX
   FAR struct qspi_dev_s *qspi;
 #endif
 
-#ifdef CONFIG_SIM_SPIFLASH
+#ifdef CONFIG_SPI_FLASH
 #ifdef CONFIG_MTD_M25P
   /* Initialize a simulated SPI FLASH block device m25p MTD driver */
 
-  spi = up_spiflashinitialize("m25p");
+  spi = spi_flash_initialize("m25p");
   if (spi != NULL)
     {
       mtd = m25p_initialize(spi);
@@ -91,7 +98,7 @@ static void up_init_smartfs(void)
 #ifdef CONFIG_MTD_SST26
   /* Initialize a simulated SPI FLASH block device sst26 MTD driver */
 
-  spi = up_spiflashinitialize("sst26");
+  spi = spi_flash_initialize("sst26");
   if (spi != NULL)
     {
       mtd = sst26_initialize_spi(spi);
@@ -110,7 +117,7 @@ static void up_init_smartfs(void)
 #ifdef CONFIG_MTD_W25
   /* Initialize a simulated SPI FLASH block device w25 MTD driver */
 
-  spi = up_spiflashinitialize("w25");
+  spi = spi_flash_initialize("w25");
   if (spi != NULL)
     {
       mtd = w25_initialize(spi);
@@ -125,12 +132,12 @@ static void up_init_smartfs(void)
         }
     }
 #endif
-#endif      /* CONFIG_SIM_SPIFLASH */
+#endif /* CONFIG_SPI_FLASH */
 
-#if defined(CONFIG_MTD_N25QXXX) && defined(CONFIG_SIM_QSPIFLASH)
+#if defined(CONFIG_MTD_N25QXXX) && defined(CONFIG_QSPI_FLASH)
   /* Initialize a simulated SPI FLASH block device n25qxxx MTD driver */
 
-  qspi = up_qspiflashinitialize();
+  qspi = qspi_flash_initialize();
   if (qspi != NULL)
     {
       mtd = n25qxxx_initialize(qspi, 0);
@@ -147,6 +154,70 @@ static void up_init_smartfs(void)
 #endif
 }
 #endif
+
+static int up_loop_task(int argc, FAR char **argv)
+{
+  while (1)
+    {
+      /* Handle UART data availability */
+
+      up_uartloop();
+
+#if defined(CONFIG_SIM_TOUCHSCREEN) || defined(CONFIG_SIM_AJOYSTICK) || \
+    defined(CONFIG_SIM_BUTTONS)
+      /* Drive the X11 event loop */
+
+      up_x11events();
+#endif
+
+#ifdef CONFIG_SIM_NETDEV
+      /* Run the network if enabled */
+
+      netdriver_loop();
+#endif
+
+#ifdef CONFIG_SIM_NETUSRSOCK
+      usrsock_loop();
+#endif
+
+#ifdef CONFIG_RPTUN
+      up_rptun_loop();
+#endif
+
+#ifdef CONFIG_SIM_HCISOCKET
+      bthcisock_loop();
+#endif
+
+#ifdef CONFIG_SIM_SOUND
+      sim_audio_loop();
+#endif
+
+#ifdef CONFIG_MOTOR_FOC_DUMMY
+      /* Update simulated FOC device */
+
+      foc_dummy_update();
+#endif
+
+      /* Sleep minimal time, let the idle run */
+
+      usleep(USEC_PER_TICK);
+    }
+
+  return 0;
+}
+
+static void up_loop_init(void)
+{
+  int ret;
+
+  /* Use loop_task to simulate the IRQ */
+
+  ret = kthread_create("loop_task", 1,
+                       CONFIG_DEFAULT_TASK_STACKSIZE,
+                       up_loop_task, NULL);
+
+  DEBUGASSERT(ret > 0);
+}
 
 /****************************************************************************
  * Public Functions
@@ -270,7 +341,8 @@ void up_initialize(void)
   telnet_initialize();
 #endif
 
-#if defined(CONFIG_FS_SMARTFS) && (defined(CONFIG_SIM_SPIFLASH) || defined(CONFIG_SIM_QSPIFLASH))
+#if defined(CONFIG_FS_SMARTFS) && defined(CONFIG_MTD_SMART) && \
+    (defined(CONFIG_SPI_FLASH) || defined(CONFIG_QSPI_FLASH))
   up_init_smartfs();
 #endif
 
@@ -278,4 +350,6 @@ void up_initialize(void)
   audio_register("pcm0p", sim_audio_initialize(true));
   audio_register("pcm0c", sim_audio_initialize(false));
 #endif
+
+  up_loop_init();
 }

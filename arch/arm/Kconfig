@@ -80,6 +80,7 @@ config ARCH_CHIP_IMX1
 config ARCH_CHIP_IMX6
 	bool "NXP/Freescale iMX.6"
 	select ARCH_CORTEXA9
+	select ARM_THUMB
 	select ARMV7A_HAVE_L2CC_PL310
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_TRUSTZONE
@@ -411,7 +412,22 @@ config ARCH_CHIP_STM32L5
 	select ARM_HAVE_MPU_UNIFIED
 	select ARMV8M_HAVE_STACKCHECK
 	---help---
-		STMicro STM32 architectures (ARM Cortex-M33).
+		STMicro STM32 L5 architectures (ARM Cortex-M33).
+
+config ARCH_CHIP_STM32U5
+	bool "STMicro STM32 U5"
+	select ARCH_CORTEXM33
+	select ARCH_HAVE_MPU
+	select ARCH_HAVE_FETCHADD
+	select ARCH_HAVE_HEAPCHECK
+	select ARCH_HAVE_PROGMEM
+	select ARCH_HAVE_SPI_BITORDER
+	select ARCH_HAVE_TICKLESS
+	select ARM_HAVE_MPU_UNIFIED
+	select ARMV8M_HAVE_STACKCHECK
+	select ARCH_HAVE_TRUSTZONE
+	---help---
+		STMicro STM32 U5 architectures (ARM Cortex-M33).
 
 config ARCH_CHIP_STR71X
 	bool "STMicro STR71x"
@@ -468,6 +484,7 @@ config ARCH_CHIP_CXD56XX
 config ARCH_CHIP_PHY62XX
 	bool "Phyplus PHY62XX BLE"
 	select ARCH_CORTEXM0
+	select LIBC_ARCH_ATOMIC
 	---help---
 		Phyplus PHY62XX architectures (ARM Cortex-M0).
 
@@ -571,6 +588,7 @@ config ARCH_ARMV6M
 config ARCH_CORTEXM0
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV6M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_RESET
@@ -584,6 +602,7 @@ config ARCH_ARMV7M
 config ARCH_CORTEXM3
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV7M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -600,6 +619,7 @@ config ARCH_CORTEXM3
 config ARCH_CORTEXM4
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV7M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -616,6 +636,7 @@ config ARCH_CORTEXM4
 config ARCH_CORTEXM7
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV7M
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_IRQPRIO
@@ -714,6 +735,7 @@ config ARCH_ARMV8M
 config ARCH_CORTEXM23
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV8M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -727,6 +749,7 @@ config ARCH_CORTEXM23
 config ARCH_CORTEXM33
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV8M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -744,6 +767,7 @@ config ARCH_CORTEXM33
 config ARCH_CORTEXM35P
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV8M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -761,6 +785,7 @@ config ARCH_CORTEXM35P
 config ARCH_CORTEXM55
 	bool
 	default n
+	select ARM_THUMB
 	select ARCH_ARMV8M
 	select ARCH_HAVE_IRQPRIO
 	select ARCH_HAVE_IRQTRIGGER
@@ -822,6 +847,7 @@ config ARCH_CHIP
 	default "stm32h7"	if ARCH_CHIP_STM32H7
 	default "stm32l4"	if ARCH_CHIP_STM32L4
 	default "stm32l5"	if ARCH_CHIP_STM32L5
+	default "stm32u5"	if ARCH_CHIP_STM32U5
 	default "str71x"	if ARCH_CHIP_STR71X
 	default "tms570"	if ARCH_CHIP_TMS570
 	default "xmc4"		if ARCH_CHIP_XMC4
@@ -854,7 +880,6 @@ endchoice # TrustZone Configuration
 config ARM_THUMB
 	bool
 	default n
-	depends on ARCH_ARMV7A
 
 config ARM_HAVE_WFE_SEV
 	bool
@@ -1172,6 +1197,9 @@ source "arch/arm/src/stm32l4/Kconfig"
 endif
 if ARCH_CHIP_STM32L5
 source "arch/arm/src/stm32l5/Kconfig"
+endif
+if ARCH_CHIP_STM32U5
+source "arch/arm/src/stm32u5/Kconfig"
 endif
 if ARCH_CHIP_STR71X
 source "arch/arm/src/str71x/Kconfig"

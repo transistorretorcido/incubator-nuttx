@@ -1,5 +1,5 @@
 ############################################################################
-# boards/arm/samv7/same70-qmtech/src/Makefile
+# boards/arm/samv7/same70-qmtech/src/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -24,9 +24,6 @@ CSRCS = sam_boot.c
 
 ifeq ($(CONFIG_BOARDCTL),y)
 CSRCS += sam_appinit.c sam_bringup.c
-ifeq ($(CONFIG_BOARDCTL_RESET),y)
-CSRCS += sam_reset.c
-endif
 else ifeq ($(CONFIG_BOARD_LATE_INITIALIZE),y)
 CSRCS += sam_bringup.c
 endif
@@ -39,14 +36,6 @@ endif
 
 ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS += sam_buttons.c
-endif
-
-ifeq ($(CONFIG_SAMV7_HSMCI0),y)
-CSRCS += sam_hsmci.c
-endif
-
-ifeq ($(CONFIG_FS_AUTOMOUNTER),y)
-CSRCS += sam_automount.c
 endif
 
 ifeq ($(CONFIG_SAMV7_SPI),y)

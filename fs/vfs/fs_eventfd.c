@@ -37,19 +37,6 @@
 #include "inode/inode.h"
 
 /****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-
-#ifndef CONFIG_EVENT_FD_VFS_PATH
-#define CONFIG_EVENT_FD_VFS_PATH "/var/event"
-#endif
-
-#ifndef CONFIG_EVENT_FD_NPOLLWAITERS
-/* Maximum number of threads than can be waiting for POLL events */
-#define CONFIG_EVENT_FD_NPOLLWAITERS 2
-#endif
-
-/****************************************************************************
  * Private Types
  ****************************************************************************/
 
@@ -120,9 +107,14 @@ static const struct file_operations g_eventfd_fops =
   eventfd_do_read,  /* read */
   eventfd_do_write, /* write */
   NULL,             /* seek */
-  NULL              /* ioctl */
+  NULL,             /* ioctl */
 #ifdef CONFIG_EVENT_FD_POLL
-  , eventfd_do_poll /* poll */
+  eventfd_do_poll   /* poll */
+#else
+  NULL              /* poll */
+#endif
+#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
+  , NULL            /* unlink */
 #endif
 };
 

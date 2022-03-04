@@ -62,10 +62,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#ifndef CONFIG_SMP_NCPUS
-#  define CONFIG_SMP_NCPUS       1
-#endif
-
 /* This set of all CPUs */
 
 #define SCHED_ALL_CPUS           ((1 << CONFIG_SMP_NCPUS) - 1)
@@ -592,7 +588,7 @@ void nx_start(void)
        * of child status in the IDLE group.
        */
 
-      DEBUGVERIFY(group_initialize(&g_idletcb[i]));
+      group_initialize(&g_idletcb[i]);
       g_idletcb[i].cmn.group->tg_flags = GROUP_FLAG_NOCLDWAIT;
     }
 
@@ -612,6 +608,13 @@ void nx_start(void)
       task_initialize();
     }
 #endif
+
+  /* Disables context switching beacuse we need take the memory manager
+   * semaphore on this CPU so that it will not be available on the other
+   * CPUs until we have finished initialization.
+   */
+
+  sched_lock();
 
   /* Initialize the file system (needed to support device drivers) */
 
@@ -750,13 +753,6 @@ void nx_start(void)
 
   syslog_initialize();
 
-  /* Disables context switching beacuse we need take the memory manager
-   * semaphore on this CPU so that it will not be available on the other
-   * CPUs until we have finished initialization.
-   */
-
-  sched_lock();
-
 #ifdef CONFIG_SMP
   /* Start all CPUs *********************************************************/
 
@@ -780,6 +776,10 @@ void nx_start(void)
 
   DEBUGVERIFY(nx_bringup());
 
+  /* Enter to idleloop */
+
+  g_nx_initstate = OSINIT_IDLELOOP;
+
   /* Let other threads have access to the memory manager */
 
   sched_unlock();
@@ -791,39 +791,6 @@ void nx_start(void)
   sinfo("CPU0: Beginning Idle Loop\n");
   for (; ; )
     {
-#if defined(CONFIG_STACK_COLORATION) && CONFIG_STACK_USAGE_SAFE_PERCENT > 0
-
-      /* Check stack in idle thread */
-
-      for (i = 0; i < g_npidhash; i++)
-        {
-          FAR struct tcb_s *tcb;
-          irqstate_t flags;
-
-          flags = enter_critical_section();
-
-          tcb = g_pidhash[i];
-          if (tcb && (up_check_tcbstack(tcb) * 100 / tcb->adj_stack_size
-                      > CONFIG_STACK_USAGE_SAFE_PERCENT))
-            {
-#if CONFIG_TASK_NAME_SIZE > 0
-              _alert("Stack check failed, pid %d, name %s\n",
-                      tcb->pid, tcb->name);
-#else
-              _alert("Stack check failed, pid %d\n", tcb->pid);
-#endif
-              PANIC();
-            }
-
-          leave_critical_section(flags);
-        }
-
-#endif
-
-      /* Check heap in idle thread */
-
-      kmm_checkcorruption();
-
       /* Perform any processor-specific idle state operations */
 
       up_idle();

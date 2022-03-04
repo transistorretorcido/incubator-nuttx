@@ -58,7 +58,7 @@ else
 	ESPTOOL_WRITEFLASH_OPTS := -fs $(FLASH_SIZE) -fm dio -ff $(FLASH_FREQ)
 endif
 
-ifeq ($(CONFIG_ESP32_SECURE_BOOT),y)
+ifneq ($(CONFIG_ESP32_SECURE_BOOT)$(CONFIG_ESP32_SECURE_FLASH_ENC_ENABLED),)
 	ESPTOOL_RESET_OPTS += --after no_reset
 endif
 
@@ -76,14 +76,19 @@ ifdef ESPTOOL_BINDIR
 		FLASH_PT        := $(PT_OFFSET) $(PARTITION_TABLE)
 		ESPTOOL_BINS    := $(FLASH_BL) $(FLASH_PT)
 	else ifeq ($(CONFIG_ESP32_APP_FORMAT_MCUBOOT),y)
-		BL_OFFSET       := 0x1000
+		BL_OFFSET        := 0x1000
+
 		ifeq ($(CONFIG_ESP32_SECURE_BOOT),y)
 			BOOTLOADER   := $(ESPTOOL_BINDIR)/mcuboot-esp32.signed.bin
-			FLASH_BL     := $(BL_OFFSET) $(BOOTLOADER)
-			ESPTOOL_BINS :=
 		else
 			BOOTLOADER   := $(ESPTOOL_BINDIR)/mcuboot-esp32.bin
-			FLASH_BL     := $(BL_OFFSET) $(BOOTLOADER)
+		endif
+
+		FLASH_BL         := $(BL_OFFSET) $(BOOTLOADER)
+
+		ifneq ($(CONFIG_ESP32_SECURE_BOOT)$(CONFIG_ESP32_SECURE_FLASH_ENC_ENABLED),)
+			ESPTOOL_BINS :=
+		else
 			ESPTOOL_BINS := $(FLASH_BL)
 		endif
 	endif
@@ -107,7 +112,18 @@ else ifeq ($(CONFIG_ESP32_APP_FORMAT_MCUBOOT),y)
 	else
 		APP_IMAGE  := nuttx.bin
 	endif
+
 	FLASH_APP      := $(APP_OFFSET) $(APP_IMAGE)
+
+	ifeq ($(CONFIG_ESP32_SECURE_FLASH_ENC_ENABLED),y)
+		IMGTOOL_ALIGN_ARGS := --align 32 --max-align 32
+	else
+		IMGTOOL_ALIGN_ARGS := --align 4
+	endif
+
+	IMGTOOL_SIGN_ARGS := --pad $(VERIFIED) $(IMGTOOL_ALIGN_ARGS) -v 0 -s auto \
+		-H $(CONFIG_ESP32_APP_MCUBOOT_HEADER_SIZE) --pad-header \
+		-S $(CONFIG_ESP32_OTA_SLOT_SIZE)
 endif
 
 ESPTOOL_BINS += $(FLASH_APP)
@@ -125,13 +141,13 @@ define HELP_SIGN_APP
 	$(Q) echo ""
 	$(Q) echo "$(YELLOW)Application not signed. Sign the application before flashing.$(RST)"
 	$(Q) echo "To sign the application, you can use this command:"
-	$(Q) echo "    imgtool sign -k $(ESPSEC_KEYDIR)/$(CONFIG_ESP32_SECURE_BOOT_APP_SIGNING_KEY) --public-key-format hash --pad $(VERIFIED) --align 4 -v 0 -s auto -H $(CONFIG_ESP32_APP_MCUBOOT_HEADER_SIZE) --pad-header -S $(CONFIG_ESP32_OTA_SLOT_SIZE) nuttx.hex nuttx.signed.bin"
+	$(Q) echo "    imgtool sign -k $(ESPSEC_KEYDIR)/$(CONFIG_ESP32_SECURE_BOOT_APP_SIGNING_KEY) --public-key-format hash $(IMGTOOL_SIGN_ARGS) nuttx.hex nuttx.signed.bin"
 	$(Q) echo ""
 endef
 
 define HELP_FLASH_BOOTLOADER
 	$(Q) echo ""
-	$(Q) echo "$(YELLOW)Secure boot enabled, so bootloader not flashed automatically.$(RST)"
+	$(Q) echo "$(YELLOW)Security features enabled, so bootloader not flashed automatically.$(RST)"
 	$(Q) echo "Use the following command to flash the bootloader:"
 	$(Q) echo "    esptool.py $(ESPTOOL_OPTS) write_flash $(ESPTOOL_WRITEFLASH_OPTS) $(FLASH_BL)"
 	$(Q) echo ""
@@ -191,13 +207,8 @@ define SIGNBIN
 		echo ""; \
 		exit 1; \
 	fi
-	$(if $(CONFIG_ESP32_SECURE_BOOT_BUILD_SIGNED_BINARIES), \
-		$(eval IMGTOOL_KEY_ARGS := -k $(APP_SIGN_KEY) --public-key-format hash))
 
-	imgtool sign $(IMGTOOL_KEY_ARGS) --pad $(VERIFIED) --align 4 -v 0 -s auto \
-		-H $(CONFIG_ESP32_APP_MCUBOOT_HEADER_SIZE) --pad-header \
-		-S $(CONFIG_ESP32_OTA_SLOT_SIZE) \
-		nuttx.hex nuttx.signed.bin
+	imgtool sign -k $(APP_SIGN_KEY) --public-key-format hash $(IMGTOOL_SIGN_ARGS) nuttx.hex nuttx.signed.bin
 	$(Q) echo nuttx.signed.bin >> nuttx.manifest
 	$(Q) echo "Generated: nuttx.signed.bin (MCUboot compatible)"
 endef
@@ -236,10 +247,7 @@ define MKIMAGE
 		echo "Run make again to create the nuttx.bin image."; \
 		exit 1; \
 	fi
-	imgtool sign --pad $(VERIFIED) --align 4 -v 0 -s auto \
-		-H $(CONFIG_ESP32_APP_MCUBOOT_HEADER_SIZE) --pad-header \
-		-S $(CONFIG_ESP32_OTA_SLOT_SIZE) \
-		nuttx.hex nuttx.bin
+	imgtool sign $(IMGTOOL_SIGN_ARGS) nuttx.hex nuttx.bin
 	$(Q) echo "Generated: nuttx.bin (MCUboot compatible)"
 endef
 endif
@@ -268,5 +276,5 @@ define FLASH
 	$(eval ESPTOOL_OPTS := -c esp32 -p $(ESPTOOL_PORT) -b $(ESPTOOL_BAUD) $(ESPTOOL_RESET_OPTS))
 	esptool.py $(ESPTOOL_OPTS) write_flash $(ESPTOOL_WRITEFLASH_OPTS) $(ESPTOOL_BINS)
 
-	$(if $(CONFIG_ESP32_SECURE_BOOT),$(call HELP_FLASH_BOOTLOADER))
+	$(if $(CONFIG_ESP32_SECURE_BOOT)$(CONFIG_ESP32_SECURE_FLASH_ENC_ENABLED),$(call HELP_FLASH_BOOTLOADER))
 endef

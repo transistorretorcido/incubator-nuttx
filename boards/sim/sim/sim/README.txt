@@ -132,7 +132,7 @@ the stack and overflow the small NuttX stacks.  X11, in particular, requires
 large stacks.  If you are using X11 in the simulation, make sure that you set
 aside a "lot" of stack for the X11 library calls (maybe 8 or 16Kb). The stack
 size for the thread that begins with user start is controlled by the
-configuration setting CONFIG_USERMAIN_STACKSIZE; you may need to increase this
+configuration setting CONFIG_INIT_STACKSIZE; you may need to increase this
 value to larger number to survive the X11 library calls.
 
 If you are running X11 applications such as NSH add-on programs, then the
@@ -472,6 +472,7 @@ Common Configuration Information
         CONFIG_HOST_WINDOWS=n
         CONFIG_HOST_X86=y
         CONFIG_HOST_X86_64=n
+        CONFIG_HOST_ARM64=n
 
      b. Linux, 64-bit CPU, 32-bit build
 
@@ -479,6 +480,7 @@ Common Configuration Information
         CONFIG_HOST_WINDOWS=n
         CONFIG_HOST_X86=n
         CONFIG_HOST_X86_64=y
+        CONFIG_HOST_ARM64=n
         CONFIG_SIM_X8664_MICROSOFT=n
         CONFIG_SIM_X8664_SYSTEMV=y
         CONFIG_SIM_M32=y
@@ -489,6 +491,7 @@ Common Configuration Information
         CONFIG_HOST_WINDOWS=n
         CONFIG_HOST_X86=n
         CONFIG_HOST_X86_64=y
+        CONFIG_HOST_ARM64=n
         CONFIG_SIM_X8664_MICROSOFT=n
         CONFIG_SIM_X8664_SYSTEMV=y
         CONFIG_SIM_M32=n
@@ -500,6 +503,7 @@ Common Configuration Information
         CONFIG_WINDOWS_CYGWIN=y
         CONFIG_HOST_X86=y
         CONFIG_HOST_X86_64=n
+        CONFIG_HOST_ARM64=n
 
      e. Cygwin64, 64-bit, 32-bit build
 
@@ -512,6 +516,7 @@ Common Configuration Information
         CONFIG_WINDOWS_CYGWIN=y
         CONFIG_HOST_X86=n
         CONFIG_HOST_X86_64=y
+        CONFIG_HOST_ARM64=n
         CONFIG_SIM_X8664_MICROSOFT=y
         CONFIG_SIM_X8664_SYSTEMV=n
         CONFIG_SIM_M32=n
@@ -523,6 +528,31 @@ Common Configuration Information
         CONFIG_HOST_WINDOWS=n
         CONFIG_HOST_X86=n
         CONFIG_HOST_X86_64=y
+        CONFIG_HOST_ARM64=n
+        CONFIG_SIM_X8664_MICROSOFT=n
+        CONFIG_SIM_X8664_SYSTEMV=y
+        CONFIG_SIM_M32=n
+
+     h. macOS M1, 64-bit, 64-bit build
+
+        CONFIG_HOST_LINUX=n
+        CONFIG_HOST_MACOS=y
+        CONFIG_HOST_WINDOWS=n
+        CONFIG_HOST_X86=n
+        CONFIG_HOST_X86_64=n
+        CONFIG_HOST_ARM64=y
+        CONFIG_SIM_X8664_MICROSOFT=n
+        CONFIG_SIM_X8664_SYSTEMV=y
+        CONFIG_SIM_M32=n
+
+     i. Linux ARM64, 64-bit, 64-bit build
+
+        CONFIG_HOST_LINUX=y
+        CONFIG_HOST_MACOS=n
+        CONFIG_HOST_WINDOWS=n
+        CONFIG_HOST_X86=n
+        CONFIG_HOST_X86_64=n
+        CONFIG_HOST_ARM64=y
         CONFIG_SIM_X8664_MICROSOFT=n
         CONFIG_SIM_X8664_SYSTEMV=y
         CONFIG_SIM_M32=n
@@ -619,7 +649,7 @@ loadable
   This is the key part of the configuration:
 
   +CONFIG_PATH_INITIAL="/system/bin"
-  +CONFIG_USER_INITPATH="/system/bin/nsh"
+  +CONFIG_INIT_FILEPATH="/system/bin/nsh"
 
   The shell is loaded from the elf, but you can also run any of the ELFs that are in /system/bin as they are on the "PATH"
 
@@ -1336,6 +1366,12 @@ ustream
 
   Note that the binfs file system is mounted at /bin when the system starts
   up.
+
+vncserver
+
+  This a simple vnc server test configuration, Remmina is tested and recommended since
+  there are some compatibility issues. By defualt SIM will be blocked at startup to
+  wait client connection, if a client connected, then the fb example will launch. 
 
 vpnkit
 

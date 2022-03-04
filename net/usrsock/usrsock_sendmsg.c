@@ -283,7 +283,8 @@ ssize_t usrsock_sendmsg(FAR struct socket *psock,
 
       if (!(conn->flags & USRSOCK_EVENT_SENDTO_READY))
         {
-          if (_SS_ISNONBLOCK(psock->s_flags) || (flags & MSG_DONTWAIT) != 0)
+          if (_SS_ISNONBLOCK(conn->sconn.s_flags) ||
+              (flags & MSG_DONTWAIT) != 0)
             {
               /* Send busy at daemon side. */
 
@@ -299,14 +300,14 @@ ssize_t usrsock_sendmsg(FAR struct socket *psock,
                                                USRSOCK_EVENT_REMOTE_CLOSED);
           if (ret < 0)
             {
-              nwarn("usrsock_setup_request_callback failed: %d\n", ret);
+              nwarn("usrsock_setup_request_callback failed: %zd\n", ret);
               goto errout_unlock;
             }
 
           /* Wait for send-ready (or abort, or timeout, or signal). */
 
           ret = net_timedwait(&state.recvsem,
-                              _SO_TIMEOUT(psock->s_sndtimeo));
+                              _SO_TIMEOUT(conn->sconn.s_sndtimeo));
           if (ret < 0)
             {
               if (ret == -ETIMEDOUT)
@@ -321,7 +322,7 @@ ssize_t usrsock_sendmsg(FAR struct socket *psock,
                 }
               else
                 {
-                  nerr("net_timedwait errno: %d\n", ret);
+                  nerr("net_timedwait errno: %zd\n", ret);
                   DEBUGASSERT(false);
                 }
             }
@@ -361,7 +362,7 @@ ssize_t usrsock_sendmsg(FAR struct socket *psock,
                                            USRSOCK_EVENT_REQ_COMPLETE);
       if (ret < 0)
         {
-          nwarn("usrsock_setup_request_callback failed: %d\n", ret);
+          nwarn("usrsock_setup_request_callback failed: %zd\n", ret);
           goto errout_unlock;
         }
 
