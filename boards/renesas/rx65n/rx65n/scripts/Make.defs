@@ -44,7 +44,7 @@ ifneq ($(CONFIG_DEBUG_NOOPT),y)
 endif
 
 ARCHPICFLAGS = -fpic
-ARCHCFLAGS = -fno-common -std=c99 -fno-builtin
+ARCHCFLAGS = -fno-common -std=c99
 ARCHCPUFLAGS = -mcpu=rx64m
 ARCHWARNINGS = -Wall -Wstrict-prototypes -Wshadow -Wundef
 ARCHWARNINGSXX = -Wall -Wshadow -Wundef
@@ -56,10 +56,6 @@ AFLAGS := $(CFLAGS) -D__ASSEMBLY__
 
 LDMODULEFLAGS = -r -e module_initialize
 LDMODULEFLAGS += -T $(call CONVERT_PATH,$(TOPDIR)/libs/libc/modlib/gnu-elf.ld)
-
-ifeq ($(CONFIG_DEBUG_SYMBOLS),y)
-  LDFLAGS += -g
-endif
 
 CMODULEFLAGS = $(CFLAGS) -mlong-calls # --target1-abs
 

@@ -29,7 +29,6 @@
 #include <debug.h>
 
 #include "riscv_internal.h"
-
 #include "hardware/esp32c3_system.h"
 #include "hardware/esp32c3_soc.h"
 #include "hardware/esp32c3_syscon.h"
@@ -336,7 +335,7 @@ void esp32c3_phy_enable(void)
   if (!cal_data)
     {
       wlerr("ERROR: Failed to kmm_zalloc");
-      DEBUGASSERT(0);
+      DEBUGPANIC();
     }
 
   flags = enter_critical_section();

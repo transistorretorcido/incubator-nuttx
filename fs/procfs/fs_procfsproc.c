@@ -44,7 +44,7 @@
 #endif
 
 #include <nuttx/irq.h>
-#include <nuttx/arch.h>
+#include <nuttx/tls.h>
 #include <nuttx/sched.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/environ.h>
@@ -178,7 +178,7 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
                  FAR struct tcb_s *tcb, FAR char *buffer, size_t buflen,
                  off_t offset);
 #endif
-#ifdef CONFIG_DEBUG_MM
+#ifdef CONFIG_MM_BACKTRACE
 static ssize_t proc_heap(FAR struct proc_file_s *procfile,
                          FAR struct tcb_s *tcb, FAR char *buffer,
                          size_t buflen, off_t offset);
@@ -904,7 +904,7 @@ static ssize_t proc_critmon(FAR struct proc_file_s *procfile,
  * Name: proc_heap
  ****************************************************************************/
 
-#ifdef CONFIG_DEBUG_MM
+#ifdef CONFIG_MM_BACKTRACE
 static ssize_t proc_heap(FAR struct proc_file_s *procfile,
                          FAR struct tcb_s *tcb, FAR char *buffer,
                          size_t buflen, off_t offset)
@@ -1445,11 +1445,11 @@ static int proc_open(FAR struct file *filep, FAR const char *relpath,
 
   ptr++;
 
-  /* A valid PID would be in the range of 0-32767 (0 is reserved for the
+  /* A valid PID would be in the range of 0-INT_MAX (0 is reserved for the
    * IDLE thread).
    */
 
-  if (tmp >= 32768)
+  if (tmp > INT_MAX)
     {
       ferr("ERROR: Invalid PID %ld\n", tmp);
       return -ENOENT;
@@ -1575,7 +1575,7 @@ static ssize_t proc_read(FAR struct file *filep, FAR char *buffer,
       ret = proc_critmon(procfile, tcb, buffer, buflen, filep->f_pos);
       break;
 #endif
-#ifdef CONFIG_DEBUG_MM
+#ifdef CONFIG_MM_BACKTRACE
     case PROC_HEAP: /* Task heap info */
       ret = proc_heap(procfile, tcb, buffer, buflen, filep->f_pos);
       break;
@@ -1701,11 +1701,11 @@ static int proc_opendir(FAR const char *relpath, FAR struct fs_dirent_s *dir)
       return -ENOENT;
     }
 
-  /* A valid PID would be in the range of 0-32767 (0 is reserved for the
+  /* A valid PID would be in the range of 0-INT_MAX (0 is reserved for the
    * IDLE thread).
    */
 
-  if (tmp >= 32768)
+  if (tmp > INT_MAX)
     {
       ferr("ERROR: Invalid PID %ld\n", tmp);
       return -ENOENT;
@@ -1947,11 +1947,11 @@ static int proc_stat(const char *relpath, struct stat *buf)
       return -ENOENT;
     }
 
-  /* A valid PID would be in the range of 0-32767 (0 is reserved for the
+  /* A valid PID would be in the range of 0-INT_MAX (0 is reserved for the
    * IDLE thread).
    */
 
-  if (tmp >= 32768)
+  if (tmp > INT_MAX)
     {
       ferr("ERROR: Invalid PID %ld\n", tmp);
       return -ENOENT;

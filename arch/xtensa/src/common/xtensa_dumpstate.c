@@ -24,19 +24,21 @@
 
 #include <nuttx/config.h>
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <debug.h>
 
 #include <nuttx/irq.h>
+#include <nuttx/tls.h>
 #include <nuttx/arch.h>
 #include <nuttx/syslog/syslog.h>
 
 #include <arch/xtensa/xtensa_corebits.h>
 #include <arch/board/board.h>
 #include <arch/chip/core-isa.h>
-#include "chip.h"
+
 #include "sched/sched.h"
 #include "xtensa.h"
 
@@ -52,6 +54,7 @@
 
 static void xtensa_dump_task(struct tcb_s *tcb, void *arg)
 {
+  char args[64] = "";
 #ifdef CONFIG_STACK_COLORATION
   uint32_t stack_filled = 0;
   uint32_t stack_used;
@@ -87,38 +90,58 @@ static void xtensa_dump_task(struct tcb_s *tcb, void *arg)
     }
 #endif
 
+#ifndef CONFIG_DISABLE_PTHREAD
+  if ((tcb->flags & TCB_FLAG_TTYPE_MASK) == TCB_FLAG_TTYPE_PTHREAD)
+    {
+      FAR struct pthread_tcb_s *ptcb = (FAR struct pthread_tcb_s *)tcb;
+
+      snprintf(args, sizeof(args), " %p", ptcb->arg);
+    }
+  else
+#endif
+    {
+      FAR char **argv = tcb->group->tg_info->argv + 1;
+      size_t npos = 0;
+
+      while (*argv != NULL && npos < sizeof(args))
+        {
+          npos += snprintf(args + npos, sizeof(args) - npos, " %s", *argv++);
+        }
+    }
+
   /* Dump interesting properties of this task */
 
   _alert("  %4d   %4d"
-#ifdef CONFIG_STACK_COLORATION
-         "   %7lu"
+#ifdef CONFIG_SMP
+         "  %4d"
 #endif
          "   %7lu"
 #ifdef CONFIG_STACK_COLORATION
-         "   %3" PRId32 ".%1" PRId32 "%%%c"
+         "   %7lu   %3" PRId32 ".%1" PRId32 "%%%c"
 #endif
 #ifdef CONFIG_SCHED_CPULOAD
          "   %3" PRId32 ".%01" PRId32 "%%"
 #endif
-#if CONFIG_TASK_NAME_SIZE > 0
-         "   %s"
+         "   %s%s\n"
+         , tcb->pid, tcb->sched_priority
+#ifdef CONFIG_SMP
+         , tcb->cpu
 #endif
-         "\n",
-         tcb->pid, tcb->sched_priority,
+         , (unsigned long)tcb->adj_stack_size
 #ifdef CONFIG_STACK_COLORATION
-         (unsigned long)up_check_tcbstack(tcb),
-#endif
-         (unsigned long)tcb->adj_stack_size
-#ifdef CONFIG_STACK_COLORATION
-         , stack_filled / 10, stack_filled % 10,
-         (stack_filled >= 10 * 80 ? '!' : ' ')
+         , (unsigned long)up_check_tcbstack(tcb)
+         , stack_filled / 10, stack_filled % 10
+         , (stack_filled >= 10 * 80 ? '!' : ' ')
 #endif
 #ifdef CONFIG_SCHED_CPULOAD
          , intpart, fracpart
 #endif
 #if CONFIG_TASK_NAME_SIZE > 0
          , tcb->name
+#else
+         , "<noname>"
 #endif
+         , args
         );
 }
 
@@ -159,42 +182,34 @@ static inline void xtensa_showtasks(void)
   /* Dump interesting properties of each task in the crash environment */
 
   _alert("   PID    PRI"
-#ifdef CONFIG_STACK_COLORATION
-         "      USED"
+#ifdef CONFIG_SMP
+         "   CPU"
 #endif
          "     STACK"
 #ifdef CONFIG_STACK_COLORATION
-         "   FILLED "
+         "      USED   FILLED "
 #endif
 #ifdef CONFIG_SCHED_CPULOAD
          "      CPU"
 #endif
-#if CONFIG_TASK_NAME_SIZE > 0
-         "   COMMAND"
-#endif
-         "\n");
+         "   COMMAND\n");
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 15
   _alert("  ----   ----"
-#  ifdef CONFIG_STACK_COLORATION
-         "   %7lu"
+#  ifdef CONFIG_SMP
+         "  ----"
 #  endif
-         "   %7lu"
+         "   %7u"
 #  ifdef CONFIG_STACK_COLORATION
-         "   %3" PRId32 ".%1" PRId32 "%%%c"
+         "   %7" PRId32 "   %3" PRId32 ".%1" PRId32 "%%%c"
 #  endif
 #  ifdef CONFIG_SCHED_CPULOAD
          "     ----"
 #  endif
-#  if CONFIG_TASK_NAME_SIZE > 0
-         "   irq"
-#  endif
-         "\n"
+         "   irq\n"
+         , (CONFIG_ARCH_INTERRUPTSTACK & ~15)
 #  ifdef CONFIG_STACK_COLORATION
-         , (unsigned long)stack_used
-#  endif
-         , (unsigned long)(CONFIG_ARCH_INTERRUPTSTACK & ~15)
-#  ifdef CONFIG_STACK_COLORATION
+         , stack_used
          , stack_filled / 10, stack_filled % 10,
          (stack_filled >= 10 * 80 ? '!' : ' ')
 #  endif
@@ -256,10 +271,6 @@ static inline void xtensa_registerdump(uintptr_t *regs)
          (unsigned long)regs[REG_LBEG], (unsigned long)regs[REG_LEND],
          (unsigned long)regs[REG_LCOUNT]);
 #endif
-#ifndef __XTENSA_CALL0_ABI__
-  _alert(" TMP0: %08lx  TMP1: %08lx\n",
-         (unsigned long)regs[REG_TMP0], (unsigned long)regs[REG_TMP1]);
-#endif
 }
 
 /****************************************************************************
@@ -287,12 +298,11 @@ void xtensa_dumpstate(void)
 
   if (CURRENT_REGS)
     {
-      memcpy(rtcb->xcp.regs,
-             (uintptr_t *)CURRENT_REGS, XCPTCONTEXT_REGS);
+      rtcb->xcp.regs = (uint32_t *)CURRENT_REGS;
     }
   else
     {
-      xtensa_context_save(rtcb->xcp.regs);
+      up_saveusercontext(rtcb->xcp.regs);
     }
 
   /* Dump the registers (if available) */
